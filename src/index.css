@@ -1,0 +1,107 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #b90014;
+  --color-primary-container: #e31b23;
+  --color-primary-fixed: #ffdad6;
+  --color-primary-fixed-dim: #ffb4ac;
+  --color-on-primary: #ffffff;
+  --color-on-primary-container: #fff9f8;
+  --color-secondary: #5f5e5e;
+  --color-secondary-container: #e2dfde;
+  --color-secondary-fixed: #e5e2e1;
+  --color-tertiary: #5a5b5b;
+  --color-tertiary-container: #737373;
+  --color-background: #f9f9f9;
+  --color-surface: #f9f9f9;
+  --color-surface-dim: #dadada;
+  --color-surface-bright: #f9f9f9;
+  --color-surface-container: #eeeeee;
+  --color-surface-container-low: #f3f3f3;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-high: #e8e8e8;
+  --color-surface-container-highest: #e2e2e2;
+  --color-on-background: #1a1c1c;
+  --color-on-surface: #1a1c1c;
+  --color-on-surface-variant: #5d3f3c;
+  --color-outline: #926e6b;
+  --color-outline-variant: #e7bdb8;
+  --color-error: #ba1a1a;
+  --color-on-error: #ffffff;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #93000a;
+  --color-inverse-surface: #2f3131;
+  --color-inverse-on-surface: #f1f1f1;
+  --color-inverse-primary: #ffb4ac;
+  --color-surface-tint: #c00015;
+
+  --spacing-container-max: 1280px;
+  --spacing-gutter: 20px;
+
+  --font-display-lg: "Playfair Display", serif;
+  --font-headline-md: "Playfair Display", serif;
+  --font-article-body: Inter, sans-serif;
+  --font-metadata: Inter, sans-serif;
+  --font-nav-link: Inter, sans-serif;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-background);
+    color: var(--color-on-background);
+    font-family: var(--font-article-body);
+  }
+}
+
+/* Custom Ticker Marquee */
+.ticker-wrap {
+  width: 100%;
+  overflow: hidden;
+  background-color: #b90014;
+  color: white;
+  padding: 4px 0;
+}
+
+.ticker {
+  display: inline-block;
+  white-space: nowrap;
+  animation: ticker 30s linear infinite;
+}
+
+.ticker:hover {
+  animation-play-state: paused;
+}
+
+@keyframes ticker {
+  0% {
+    transform: translate3d(100%, 0, 0);
+  }
+  100% {
+    transform: translate3d(-100%, 0, 0);
+  }
+}
+
+.pulse-bg {
+  animation: pulseBg 2s infinite;
+}
+
+@keyframes pulseBg {
+  0% {
+    background-color: #b90014;
+  }
+  50% {
+    background-color: #93000d;
+  }
+  100% {
+    background-color: #b90014;
+  }
+}
+
+/* Custom Scrollbar */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
