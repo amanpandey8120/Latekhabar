@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-primary: #b90014;
   --color-primary-container: #e31b23;
@@ -13,7 +15,7 @@
   --color-tertiary: #5a5b5b;
   --color-tertiary-container: #737373;
   --color-background: #f9f9f9;
-  --color-surface: #f9f9f9;
+  --color-surface: #ffffff;
   --color-surface-dim: #dadada;
   --color-surface-bright: #f9f9f9;
   --color-surface-container: #eeeeee;
@@ -45,11 +47,34 @@
   --font-nav-link: Inter, sans-serif;
 }
 
+:root {
+  color-scheme: light;
+}
+
+.dark {
+  color-scheme: dark;
+  --color-background: #121212;
+  --color-surface: #1e1e1e;
+  --color-surface-dim: #181818;
+  --color-surface-bright: #2c2c2c;
+  --color-surface-container: #252525;
+  --color-surface-container-low: #1e1e1e;
+  --color-surface-container-lowest: #121212;
+  --color-surface-container-high: #2d2d2d;
+  --color-surface-container-highest: #353535;
+  --color-on-background: #e2e2e2;
+  --color-on-surface: #f1f1f1;
+  --color-on-surface-variant: #d1b5b3;
+  --color-outline: #7a5f5c;
+  --color-outline-variant: #3a3a3a;
+}
+
 @layer base {
   body {
     background-color: var(--color-background);
     color: var(--color-on-background);
     font-family: var(--font-article-body);
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
 }
 
