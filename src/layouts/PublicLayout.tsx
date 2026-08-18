@@ -10,6 +10,7 @@ export const PublicLayout: React.FC = () => {
   const [breaking, setBreaking] = useState<Article[]>([]);
 
   useEffect(() => {
+    document.title = "Late Khabar - Modern Editorial News Platform";
     newsService.getBreakingArticles().then(setBreaking);
   }, []);
 

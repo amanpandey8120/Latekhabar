@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Shield, KeyRound, AlertCircle } from 'lucide-react';
+import { KeyRound, AlertCircle } from 'lucide-react';
 
 export const AdminLogin: React.FC = () => {
   const { signInAsAdminMock } = useAuth();
@@ -23,13 +23,8 @@ export const AdminLogin: React.FC = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#121212] px-4">
       <div className="w-full max-w-md bg-[#1c1c1c] rounded-2xl p-8 border border-gray-800 shadow-2xl space-y-6">
-        <div className="text-center space-y-2">
-          <div className="w-12 h-12 rounded-full bg-primary/20 text-primary mx-auto flex items-center justify-center">
-            <Shield size={24} />
-          </div>
-          <span className="text-3xl font-display-lg font-bold text-primary">
-            Late Khabar
-          </span>
+        <div className="text-center space-y-3 flex flex-col items-center">
+          <img src="/logo.png" alt="Late Khabar" className="h-20 w-auto object-contain drop-shadow-md mx-auto" />
           <h2 className="text-xl font-bold font-headline-md text-white">
             Editorial Management Portal
           </h2>

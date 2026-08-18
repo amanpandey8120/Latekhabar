@@ -45,10 +45,8 @@ export const Header: React.FC = () => {
             {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
 
-          <Link to="/" className="flex items-center gap-2">
-            <span className="text-3xl md:text-4xl font-display-lg font-bold text-primary dark:text-primary-container tracking-tight">
-              Late Khabar
-            </span>
+          <Link to="/" className="flex items-center">
+            <img src="/logo.png" alt="Late Khabar" className="h-11 md:h-13 w-auto object-contain drop-shadow-sm" />
           </Link>
         </div>
 

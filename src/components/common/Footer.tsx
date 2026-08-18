@@ -10,8 +10,8 @@ export const Footer: React.FC = () => {
       <div className="max-w-container-max mx-auto px-gutter grid grid-cols-1 md:grid-cols-4 gap-8">
         {/* Brand Column */}
         <div className="space-y-4">
-          <Link to="/" className="text-3xl font-display-lg font-bold text-primary dark:text-primary-container">
-            Late Khabar
+          <Link to="/" className="flex items-center">
+            <img src="/logo.png" alt="Late Khabar" className="h-12 w-auto object-contain" />
           </Link>
           <p className="text-xs text-gray-400 font-article-body leading-relaxed">
             {t('tagline')}

@@ -20,8 +20,8 @@ export const AdminSidebar: React.FC = () => {
     <aside className="w-64 bg-[#181a1b] text-gray-200 border-r border-gray-800 flex flex-col justify-between flex-shrink-0 min-h-screen">
       <div>
         <div className="p-6 border-b border-gray-800 flex items-center justify-between">
-          <Link to="/" className="text-2xl font-display-lg font-bold text-primary dark:text-primary-container">
-            Late Khabar
+          <Link to="/" className="flex items-center">
+            <img src="/logo.png" alt="Late Khabar" className="h-10 w-auto object-contain" />
           </Link>
           <span className="px-2 py-0.5 text-[10px] uppercase font-bold bg-red-950 text-red-400 rounded">
             Admin

@@ -15,10 +15,8 @@ export const Login: React.FC = () => {
     <div className="min-h-[75vh] flex items-center justify-center py-12 px-4">
       <div className="w-full max-w-md bg-white dark:bg-[#1c1c1c] rounded-2xl p-8 border border-gray-200 dark:border-gray-800 shadow-xl space-y-6 text-center">
         {/* Brand Logo & Title */}
-        <div className="space-y-2">
-          <span className="text-4xl font-display-lg font-bold text-primary dark:text-primary-container">
-            Late Khabar
-          </span>
+        <div className="space-y-3 flex flex-col items-center">
+          <img src="/logo.png" alt="Late Khabar" className="h-20 w-auto object-contain drop-shadow-md" />
           <h2 className="text-xl font-bold font-headline-md text-on-surface dark:text-white">
             Welcome to Modern Editorialism
           </h2>
