@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import type { DbProfile } from '../../types/database';
+import { AddUserModal } from '../../components/admin/AddUserModal';
+import { DeleteConfirmModal } from '../../components/admin/DeleteConfirmModal';
+import { adminDeleteUser } from '../../services/adminService';
+import { useAuth } from '../../context/AuthContext';
 import {
   Users,
   ShieldCheck,
@@ -10,31 +14,36 @@ import {
   RefreshCw,
   MapPin,
   Globe,
+  UserPlus,
+  Trash2,
 } from 'lucide-react';
 
 /**
  * UserManagement — /admin/users
  *
- * Reads public.profiles via Supabase. Only rows the authenticated admin's RLS
- * policy permits are returned — no service-role key is used.
- *
- * Role changes are intentionally NOT available from the frontend. Promoting or
- * demoting a user must be done directly in the Supabase dashboard or via a
- * secure server-side function, ensuring the RLS policy on `profiles` is the
- * single source of truth.
+ * Lists public.profiles via Supabase (RLS-gated — only rows the admin's
+ * policy permits are returned). Provides an "Add User" flow and a secure "Delete User"
+ * flow that call Supabase Edge Functions — the service-role key never touches
+ * the browser.
  */
 export const UserManagement: React.FC = () => {
+  const { user: currentUser } = useAuth();
   const [profiles, setProfiles] = useState<DbProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [showAddModal, setShowAddModal] = useState(false);
+
+  // Delete User modal states
+  const [userToDelete, setUserToDelete] = useState<DbProfile | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const fetchProfiles = async () => {
     setLoading(true);
     setError(null);
 
     if (!isSupabaseConfigured()) {
-      // Mock mode — nothing to display without a real DB
       setProfiles([]);
       setLoading(false);
       return;
@@ -54,8 +63,7 @@ export const UserManagement: React.FC = () => {
         setProfiles((data ?? []) as DbProfile[]);
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Unknown error';
-      setError(msg);
+      setError(err instanceof Error ? err.message : 'Unknown error');
       setProfiles([]);
     } finally {
       setLoading(false);
@@ -66,7 +74,26 @@ export const UserManagement: React.FC = () => {
     fetchProfiles();
   }, []);
 
-  // Client-side search filter (name, email, state, city)
+  const handleDeleteUser = async () => {
+    if (!userToDelete) return;
+    setDeletingId(userToDelete.id);
+    setDeleteError(null);
+
+    const result = await adminDeleteUser(userToDelete.id);
+
+    if (result.error) {
+      setDeleteError(result.error);
+      setDeletingId(null);
+    } else {
+      // Remove deleted user from local state immediately for instant UI feedback
+      setProfiles((prev) => prev.filter((p) => p.id !== userToDelete.id));
+      setDeletingId(null);
+      setUserToDelete(null);
+      setDeleteError(null);
+      fetchProfiles();
+    }
+  };
+
   const filtered = profiles.filter((p) => {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
@@ -79,10 +106,11 @@ export const UserManagement: React.FC = () => {
   });
 
   const adminCount = profiles.filter((p) => p.role === 'admin').length;
-  const userCount = profiles.filter((p) => p.role === 'user').length;
+  const userCount  = profiles.filter((p) => p.role === 'user').length;
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
+
       {/* ── Page header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-800 pb-4">
         <div>
@@ -91,17 +119,32 @@ export const UserManagement: React.FC = () => {
             User Management
           </h1>
           <p className="text-xs text-gray-400 mt-1">
-            View registered users. Role changes must be made via the Supabase dashboard.
+            View, create, and delete users securely via Edge Functions.
           </p>
         </div>
-        <button
-          onClick={fetchProfiles}
-          disabled={loading}
-          className="flex items-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 cursor-pointer"
-        >
-          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-          Refresh
-        </button>
+
+        <div className="flex items-center gap-2">
+          {/* Add User button */}
+          {isSupabaseConfigured() && (
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-colors shadow-lg cursor-pointer"
+            >
+              <UserPlus size={14} />
+              Add User
+            </button>
+          )}
+
+          {/* Refresh button */}
+          <button
+            onClick={fetchProfiles}
+            disabled={loading}
+            className="flex items-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 cursor-pointer"
+          >
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            Refresh
+          </button>
+        </div>
       </div>
 
       {/* ── Summary pills ── */}
@@ -136,7 +179,7 @@ export const UserManagement: React.FC = () => {
         />
       )}
 
-      {/* ── States ── */}
+      {/* ── Loading ── */}
       {loading && (
         <div className="flex items-center justify-center py-16 text-gray-500 gap-3">
           <Loader2 size={20} className="animate-spin" />
@@ -144,6 +187,7 @@ export const UserManagement: React.FC = () => {
         </div>
       )}
 
+      {/* ── DB error ── */}
       {!loading && error && (
         <div className="flex items-center gap-3 p-4 bg-red-950/40 border border-red-800 rounded-xl text-red-300 text-sm">
           <AlertCircle size={18} className="flex-shrink-0" />
@@ -151,23 +195,24 @@ export const UserManagement: React.FC = () => {
             <p className="font-semibold">Failed to load users</p>
             <p className="text-xs text-red-400 mt-0.5">{error}</p>
             <p className="text-xs text-red-500 mt-1">
-              Ensure the admin's RLS policy on <code>public.profiles</code> allows SELECT for role = 'admin'.
+              Ensure the admin RLS policy on <code>public.profiles</code> allows SELECT for role = 'admin'.
             </p>
           </div>
         </div>
       )}
 
+      {/* ── Mock mode warning ── */}
       {!loading && !error && !isSupabaseConfigured() && (
         <div className="flex items-center gap-3 p-4 bg-yellow-950/40 border border-yellow-800 rounded-xl text-yellow-300 text-sm">
           <AlertCircle size={18} className="flex-shrink-0" />
           <p>
-            Supabase is not configured. User data is unavailable in mock mode.
-            Set <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> in your
-            <code>.env</code> file.
+            Supabase is not configured. Set <code>VITE_SUPABASE_URL</code> and{' '}
+            <code>VITE_SUPABASE_ANON_KEY</code> in your <code>.env</code> file.
           </p>
         </div>
       )}
 
+      {/* ── Empty state ── */}
       {!loading && !error && isSupabaseConfigured() && filtered.length === 0 && (
         <div className="py-12 text-center text-gray-500 text-sm">
           {search ? 'No users match your search.' : 'No users found.'}
@@ -186,11 +231,13 @@ export const UserManagement: React.FC = () => {
                 <th className="p-4">Language</th>
                 <th className="p-4">Role</th>
                 <th className="p-4">Joined</th>
+                <th className="p-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800">
               {filtered.map((p) => (
                 <tr key={p.id} className="hover:bg-gray-800/40 transition-colors">
+
                   {/* User */}
                   <td className="p-4">
                     <div className="flex items-center gap-3">
@@ -199,9 +246,7 @@ export const UserManagement: React.FC = () => {
                           src={p.avatar_url}
                           alt={p.full_name ?? ''}
                           className="w-8 h-8 rounded-full object-cover flex-shrink-0 bg-gray-700"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).style.display = 'none';
-                          }}
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                         />
                       ) : (
                         <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
@@ -261,11 +306,30 @@ export const UserManagement: React.FC = () => {
                   <td className="p-4 text-gray-500">
                     {p.created_at
                       ? new Date(p.created_at).toLocaleDateString('en-IN', {
-                          day: '2-digit',
-                          month: 'short',
-                          year: 'numeric',
+                          day: '2-digit', month: 'short', year: 'numeric',
                         })
                       : '—'}
+                  </td>
+
+                  {/* Actions */}
+                  <td className="p-4 text-right">
+                    {p.id === currentUser?.id ? (
+                      <span className="inline-block text-[11px] text-gray-500 font-medium italic px-2 py-1 bg-gray-800/50 rounded">
+                        (Your Account)
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setUserToDelete(p);
+                          setDeleteError(null);
+                        }}
+                        className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition-colors cursor-pointer"
+                        title={`Delete user ${p.full_name || p.email}`}
+                        aria-label={`Delete user ${p.full_name || p.email}`}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -277,10 +341,35 @@ export const UserManagement: React.FC = () => {
       {/* ── Security note ── */}
       {!loading && !error && profiles.length > 0 && (
         <p className="text-xs text-gray-600 text-center">
-          Role management is restricted to the Supabase dashboard to prevent privilege escalation.
-          RLS policies enforce all access controls server-side.
+          Role changes are restricted to the Supabase dashboard. User creation and deletion
+          are executed via secure Edge Functions — the service-role key never leaves the server.
         </p>
+      )}
+
+      {/* ── Add User Modal ── */}
+      {showAddModal && (
+        <AddUserModal
+          onClose={() => setShowAddModal(false)}
+          onSuccess={fetchProfiles}
+        />
+      )}
+
+      {/* ── Delete Confirmation Modal ── */}
+      {userToDelete && (
+        <DeleteConfirmModal
+          userName={userToDelete.full_name || ''}
+          userEmail={userToDelete.email || ''}
+          deleting={deletingId === userToDelete.id}
+          error={deleteError || ''}
+          onCancel={() => {
+            if (deletingId) return;
+            setUserToDelete(null);
+            setDeleteError(null);
+          }}
+          onConfirm={handleDeleteUser}
+        />
       )}
     </div>
   );
 };
+
