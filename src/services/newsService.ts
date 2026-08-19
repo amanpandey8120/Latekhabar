@@ -169,7 +169,7 @@ export const newsService = {
           author_avatar: newArticleData.author.avatar,
           author_role: newArticleData.author.role,
           published_at: newArticleData.publishedAt || new Date().toISOString(),
-          status: 'published',
+          status: 'published' as const,
           is_published: true,
           is_breaking: newArticleData.isBreaking || false,
           is_trending: newArticleData.isTrending || false,
