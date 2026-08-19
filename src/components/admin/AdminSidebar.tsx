@@ -1,24 +1,44 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, FileText, PlusCircle, FolderTree, Users, LogOut, Home } from 'lucide-react';
+import {
+  LayoutDashboard,
+  FileText,
+  PlusCircle,
+  FolderTree,
+  Users,
+  LogOut,
+  Home,
+  BarChart3,
+  ImageIcon,
+  Newspaper,
+} from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 export const AdminSidebar: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { signOut } = useAuth();
+  const { user, signOut } = useAuth();
 
   const links = [
-    { path: '/admin', label: 'Dashboard', icon: LayoutDashboard },
+    { path: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { path: '/admin/news', label: 'News Feed', icon: Newspaper },
     { path: '/admin/articles', label: 'Manage Articles', icon: FileText },
     { path: '/admin/articles/create', label: 'Publish Article', icon: PlusCircle },
     { path: '/admin/categories', label: 'Categories', icon: FolderTree },
+    { path: '/admin/media', label: 'Media', icon: ImageIcon },
     { path: '/admin/users', label: 'Users & Roles', icon: Users },
+    { path: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
   ];
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/admin/login', { replace: true });
+  };
 
   return (
     <aside className="w-64 bg-[#181a1b] text-gray-200 border-r border-gray-800 flex flex-col justify-between flex-shrink-0 min-h-screen">
       <div>
+        {/* Logo + badge */}
         <div className="p-6 border-b border-gray-800 flex items-center justify-between">
           <Link to="/" className="flex items-center">
             <img src="/logo.png" alt="Late Khabar" className="h-10 w-auto object-contain" />
@@ -28,10 +48,33 @@ export const AdminSidebar: React.FC = () => {
           </span>
         </div>
 
-        <nav className="p-4 space-y-1.5">
+        {/* Admin user info */}
+        {user && (
+          <div className="px-5 py-3 border-b border-gray-800/60 flex items-center gap-3">
+            <div className="w-7 h-7 rounded-full overflow-hidden bg-primary flex-shrink-0">
+              {user.avatarUrl ? (
+                <img src={user.avatarUrl} alt={user.fullName} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-white text-xs font-bold">
+                  {user.fullName.charAt(0).toUpperCase()}
+                </div>
+              )}
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-gray-200 truncate">{user.fullName}</p>
+              <p className="text-[10px] text-gray-500 truncate">{user.email}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Nav links */}
+        <nav className="p-4 space-y-1">
           {links.map((link) => {
             const Icon = link.icon;
-            const isActive = location.pathname === link.path;
+            const isActive =
+              link.path === '/admin/dashboard'
+                ? location.pathname === '/admin/dashboard' || location.pathname === '/admin'
+                : location.pathname === link.path;
             return (
               <Link
                 key={link.path}
@@ -42,7 +85,7 @@ export const AdminSidebar: React.FC = () => {
                     : 'text-gray-400 hover:bg-gray-800 hover:text-white'
                 }`}
               >
-                <Icon size={18} />
+                <Icon size={16} />
                 <span>{link.label}</span>
               </Link>
             );
@@ -50,24 +93,22 @@ export const AdminSidebar: React.FC = () => {
         </nav>
       </div>
 
-      <div className="p-4 border-t border-gray-800 space-y-2">
+      {/* Bottom actions */}
+      <div className="p-4 border-t border-gray-800 space-y-1.5">
         <Link
           to="/"
-          className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-gray-400 hover:text-white rounded hover:bg-gray-800 transition-colors"
+          className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-gray-400 hover:text-white rounded-lg hover:bg-gray-800 transition-colors"
         >
-          <Home size={16} />
+          <Home size={15} />
           <span>Back to Live Site</span>
         </Link>
 
         <button
-          onClick={() => {
-            signOut();
-            navigate('/');
-          }}
-          className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-red-400 hover:text-red-300 rounded hover:bg-red-950/40 transition-colors"
+          onClick={handleSignOut}
+          className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-red-400 hover:text-red-300 rounded-lg hover:bg-red-950/40 transition-colors cursor-pointer"
         >
-          <LogOut size={16} />
-          <span>Exit Admin</span>
+          <LogOut size={15} />
+          <span>Exit Admin &amp; Sign Out</span>
         </button>
       </div>
     </aside>

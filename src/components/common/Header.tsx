@@ -181,11 +181,12 @@ export const Header: React.FC = () => {
                 <div className="border-t border-gray-100 dark:border-gray-800 my-1"></div>
 
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     setUserDropdownOpen(false);
-                    signOut();
+                    await signOut();
+                    navigate('/');
                   }}
-                  className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-gray-800 text-left"
+                  className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-gray-800 text-left cursor-pointer"
                 >
                   <LogOut size={16} />
                   <span>{t('logout')}</span>
@@ -248,6 +249,46 @@ export const Header: React.FC = () => {
           >
             {t('localNews')}
           </Link>
+
+          {user ? (
+            <div className="pt-2 border-t border-gray-200 dark:border-gray-800 space-y-2">
+              <div className="flex items-center gap-3 py-1">
+                <img src={user.avatarUrl} alt={user.fullName} className="w-8 h-8 rounded-full object-cover border border-gray-300 dark:border-gray-700" />
+                <div className="overflow-hidden">
+                  <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{user.fullName}</p>
+                  <p className="text-[10px] text-gray-500 truncate">{user.email}</p>
+                </div>
+              </div>
+              <Link
+                to="/profile"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200 font-semibold py-1"
+              >
+                <UserIcon size={16} />
+                <span>{t('profile')}</span>
+              </Link>
+              <button
+                onClick={async () => {
+                  setMobileMenuOpen(false);
+                  await signOut();
+                  navigate('/');
+                }}
+                className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400 font-semibold py-1 w-full text-left cursor-pointer"
+              >
+                <LogOut size={16} />
+                <span>{t('logout')}</span>
+              </button>
+            </div>
+          ) : (
+            <Link
+              to="/login"
+              onClick={() => setMobileMenuOpen(false)}
+              className="mt-2 flex items-center justify-center gap-2 py-2 px-4 bg-primary text-white rounded font-semibold text-xs"
+            >
+              <UserIcon size={16} />
+              <span>{t('login')}</span>
+            </Link>
+          )}
         </div>
       )}
     </nav>

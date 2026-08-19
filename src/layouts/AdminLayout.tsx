@@ -1,28 +1,20 @@
 import React from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { Outlet } from 'react-router-dom';
 import { AdminSidebar } from '../components/admin/AdminSidebar';
 
+/**
+ * AdminLayout
+ *
+ * Pure layout shell for the admin panel — sidebar + scrollable main area.
+ * Authentication and role authorisation are handled exclusively by the
+ * AdminRoute component that wraps every route rendered inside this layout.
+ * Do NOT add auth checks here; that would create two competing guards.
+ */
 export const AdminLayout: React.FC = () => {
-  const { user, loading } = useAuth();
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#121212] text-white">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
-  // Admin access protection
-  if (!user || user.role !== 'admin') {
-    return <Navigate to="/admin/login" replace />;
-  }
-
   return (
-    <div className="flex min-h-screen bg-background dark:bg-[#121212]">
+    <div className="flex min-h-screen bg-[#121212]">
       <AdminSidebar />
-      <main className="flex-grow p-8 overflow-y-auto">
+      <main className="flex-grow overflow-y-auto p-6 md:p-8">
         <Outlet />
       </main>
     </div>
