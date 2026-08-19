@@ -9,6 +9,23 @@ export interface Category {
   nameHi: string;
   descriptionEn?: string;
   descriptionHi?: string;
+  isActive?: boolean;
+}
+
+export interface ArticleImage {
+  id: string;
+  newsId?: string;
+  imageUrl: string;
+  captionEn?: string;
+  captionHi?: string;
+}
+
+export interface ArticleVideo {
+  id: string;
+  newsId?: string;
+  videoUrl: string;
+  titleEn?: string;
+  titleHi?: string;
 }
 
 export interface Article {
@@ -29,9 +46,12 @@ export interface Article {
     role: string;
   };
   publishedAt: string;
+  status?: 'draft' | 'published' | 'archived';
   imageUrl: string;
   imageCaption?: string;
   videoUrl?: string; // YouTube embed URL or ID
+  images?: ArticleImage[];
+  videos?: ArticleVideo[];
   isBreaking?: boolean;
   isTrending?: boolean;
   isFeatured?: boolean;

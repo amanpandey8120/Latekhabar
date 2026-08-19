@@ -87,6 +87,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (session?.user) {
         const uProfile = await syncUserProfile(session.user);
         setUser(uProfile);
+        // Load user bookmarks from Supabase
+        const { data: bData } = await supabase
+          .from('bookmarks')
+          .select('news_id')
+          .eq('user_id', session.user.id);
+        if (bData && bData.length > 0) {
+          setSavedArticleIds(bData.map((b) => b.news_id));
+        }
       }
       setLoading(false);
     });
@@ -96,6 +104,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const uProfile = await syncUserProfile(session.user);
         setUser(uProfile);
         localStorage.setItem('latekhabar_user', JSON.stringify(uProfile));
+        // Load user bookmarks from Supabase
+        const { data: bData } = await supabase
+          .from('bookmarks')
+          .select('news_id')
+          .eq('user_id', session.user.id);
+        if (bData) {
+          setSavedArticleIds(bData.map((b) => b.news_id));
+        }
       } else if (!user) {
         setUser(null);
         localStorage.removeItem('latekhabar_user');
@@ -377,10 +393,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { url: dataUrl, error: null };
   };
 
-  const toggleSaveArticle = (articleId: string) => {
+  const toggleSaveArticle = async (articleId: string) => {
+    const isCurrentlySaved = savedArticleIds.includes(articleId);
     setSavedArticleIds((prev) =>
-      prev.includes(articleId) ? prev.filter((id) => id !== articleId) : [...prev, articleId]
+      isCurrentlySaved ? prev.filter((id) => id !== articleId) : [...prev, articleId]
     );
+
+    if (user && isSupabaseConfigured()) {
+      try {
+        if (isCurrentlySaved) {
+          await supabase.from('bookmarks').delete().eq('user_id', user.id).eq('news_id', articleId);
+        } else {
+          await supabase.from('bookmarks').insert([{ user_id: user.id, news_id: articleId }]);
+        }
+      } catch (err) {
+        console.warn('Bookmarks database sync error:', err);
+      }
+    }
   };
 
   return (

@@ -6,12 +6,12 @@ import { useLanguage } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
 import { ArticleCard } from '../../components/news/ArticleCard';
 import { SkeletonHero } from '../../components/common/SkeletonLoader';
-import { Bookmark, Share2, Volume2, Clock, Check, ArrowLeft } from 'lucide-react';
+import { Bookmark, Share2, Volume2, Clock, Check, ArrowLeft, Image as ImageIcon } from 'lucide-react';
 
 export const ArticleDetail: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const { language, t } = useLanguage();
-  const { savedArticleIds, toggleSaveArticle } = useAuth();
+  const { user, savedArticleIds, toggleSaveArticle } = useAuth();
 
   const [article, setArticle] = useState<Article | null>(null);
   const [related, setRelated] = useState<Article[]>([]);
@@ -28,13 +28,16 @@ export const ArticleDetail: React.FC = () => {
       setArticle(art);
 
       if (art) {
-        const allArts = await newsService.getArticles();
+        // Record view for analytics
+        newsService.recordView(art.id, user?.id);
+
+        const allArts = await newsService.getArticles({ limit: 4 });
         setRelated(allArts.filter((a) => a.id !== art.id).slice(0, 3));
       }
       setLoading(false);
     }
     loadArticle();
-  }, [slug]);
+  }, [slug, user?.id]);
 
   if (loading) return <SkeletonHero />;
   if (!article) {
@@ -68,7 +71,7 @@ export const ArticleDetail: React.FC = () => {
           <ArrowLeft size={14} /> Home
         </Link>
         <span>/</span>
-        <Link to={`/category/${article.categoryId}`} className="hover:text-primary capitalize">
+        <Link to={`/category/${article.categoryId || article.categoryNameEn.toLowerCase()}`} className="hover:text-primary capitalize">
           {categoryName}
         </Link>
       </div>
@@ -86,7 +89,14 @@ export const ArticleDetail: React.FC = () => {
         {/* Metadata bar */}
         <div className="flex flex-wrap items-center justify-between gap-4 py-4 border-y border-gray-200 dark:border-gray-800 text-xs font-metadata text-gray-600 dark:text-gray-400">
           <div className="flex items-center gap-3">
-            <img src={article.author.avatar} alt={article.author.name} className="w-10 h-10 rounded-full object-cover border border-gray-300" />
+            <img
+              src={article.author.avatar}
+              alt={article.author.name}
+              className="w-10 h-10 rounded-full object-cover border border-gray-300 dark:border-gray-700 bg-gray-800"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(article.author.name)}`;
+              }}
+            />
             <div>
               <p className="font-bold text-gray-900 dark:text-white text-sm">{article.author.name}</p>
               <p className="text-[11px] text-gray-500">{article.author.role}</p>
@@ -102,7 +112,7 @@ export const ArticleDetail: React.FC = () => {
             {/* Audio Listen */}
             <button
               onClick={() => setIsPlayingAudio(!isPlayingAudio)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
                 isPlayingAudio ? 'bg-primary text-white animate-pulse' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200'
               }`}
             >
@@ -114,19 +124,19 @@ export const ArticleDetail: React.FC = () => {
             <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded px-1.5 py-0.5 text-xs font-bold gap-1">
               <button
                 onClick={() => setFontSizeClass('text-base')}
-                className={`px-1.5 py-0.5 rounded ${fontSizeClass === 'text-base' ? 'bg-white dark:bg-gray-700 shadow-sm' : ''}`}
+                className={`px-1.5 py-0.5 rounded cursor-pointer ${fontSizeClass === 'text-base' ? 'bg-white dark:bg-gray-700 shadow-sm' : ''}`}
               >
                 A-
               </button>
               <button
                 onClick={() => setFontSizeClass('text-lg')}
-                className={`px-1.5 py-0.5 rounded ${fontSizeClass === 'text-lg' ? 'bg-white dark:bg-gray-700 shadow-sm' : ''}`}
+                className={`px-1.5 py-0.5 rounded cursor-pointer ${fontSizeClass === 'text-lg' ? 'bg-white dark:bg-gray-700 shadow-sm' : ''}`}
               >
                 A
               </button>
               <button
                 onClick={() => setFontSizeClass('text-xl')}
-                className={`px-1.5 py-0.5 rounded ${fontSizeClass === 'text-xl' ? 'bg-white dark:bg-gray-700 shadow-sm' : ''}`}
+                className={`px-1.5 py-0.5 rounded cursor-pointer ${fontSizeClass === 'text-xl' ? 'bg-white dark:bg-gray-700 shadow-sm' : ''}`}
               >
                 A+
               </button>
@@ -135,7 +145,7 @@ export const ArticleDetail: React.FC = () => {
             {/* Bookmark button */}
             <button
               onClick={() => toggleSaveArticle(article.id)}
-              className={`p-2 rounded-full transition-colors ${
+              className={`p-2 rounded-full transition-colors cursor-pointer ${
                 isSaved ? 'bg-primary text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200'
               }`}
               title={isSaved ? t('saved') : t('save')}
@@ -146,7 +156,7 @@ export const ArticleDetail: React.FC = () => {
             {/* Share button */}
             <button
               onClick={handleShare}
-              className="flex items-center gap-1 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 text-gray-700 dark:text-gray-300 rounded-full text-xs font-semibold transition-colors"
+              className="flex items-center gap-1 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 text-gray-700 dark:text-gray-300 rounded-full text-xs font-semibold transition-colors cursor-pointer"
             >
               {copied ? <Check size={14} className="text-green-600" /> : <Share2 size={14} />}
               <span>{copied ? 'Copied' : t('share')}</span>
@@ -171,7 +181,10 @@ export const ArticleDetail: React.FC = () => {
           <img
             src={article.imageUrl}
             alt={title}
-            className="w-full max-h-[480px] object-cover rounded-xl shadow-sm"
+            className="w-full max-h-[480px] object-cover rounded-xl shadow-sm bg-gray-800"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&q=80&w=1200';
+            }}
           />
           {article.imageCaption && (
             <p className="text-xs text-gray-500 italic text-center font-article-body">
@@ -189,6 +202,31 @@ export const ArticleDetail: React.FC = () => {
           </p>
         ))}
       </div>
+
+      {/* Additional Media Gallery if present */}
+      {article.images && article.images.length > 0 && (
+        <div className="space-y-4 pt-4 border-t border-gray-200 dark:border-gray-800">
+          <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+            <ImageIcon size={16} /> Photo Gallery
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {article.images.map((img) => (
+              <div key={img.id} className="space-y-1">
+                <img
+                  src={img.imageUrl}
+                  alt={img.captionEn || title}
+                  className="w-full h-48 object-cover rounded-xl shadow-sm"
+                />
+                {(img.captionEn || img.captionHi) && (
+                  <p className="text-[11px] text-gray-500 italic">
+                    {language === 'hi' ? (img.captionHi || img.captionEn) : (img.captionEn || img.captionHi)}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Tags */}
       {article.tags && article.tags.length > 0 && (
