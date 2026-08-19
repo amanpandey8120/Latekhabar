@@ -28,3 +28,6 @@ Thumbs.db
 # Vite / TS cache
 *.tsbuildinfo
 .cache/
+
+# Supabase CLI temp files
+supabase/.temp/
