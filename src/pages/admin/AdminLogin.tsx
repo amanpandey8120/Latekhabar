@@ -12,15 +12,12 @@ export const AdminLogin: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  // If already authenticated as admin, redirect to dashboard
+  // If already authenticated AS ADMIN, skip the form and go straight to dashboard.
+  // If authenticated as a regular user, do nothing — let them submit the form
+  // which will show "Access denied" rather than silently redirecting away.
   useEffect(() => {
-    if (!loading && user) {
-      if (user.role === 'admin') {
-        navigate('/admin/dashboard', { replace: true });
-      } else {
-        // Authenticated but not admin → send to public home
-        navigate('/', { replace: true });
-      }
+    if (!loading && user && user.role === 'admin') {
+      navigate('/admin/dashboard', { replace: true });
     }
   }, [user, loading, navigate]);
 
