@@ -51,10 +51,11 @@ export const Signup: React.FC = () => {
     return true;
   };
 
-  const handleSupabaseError = (err: any): string => {
+  const handleSupabaseError = (err: unknown): string => {
     if (!err) return t('networkError');
-    const msg = (err.message || err.toString() || '').toLowerCase();
-    const code = (err.code || '').toLowerCase();
+    const asErr = err as { message?: string; code?: string };
+    const msg = (asErr.message || '').toLowerCase();
+    const code = (asErr.code || '').toLowerCase();
 
     if (
       msg.includes('already registered') ||
@@ -78,7 +79,7 @@ export const Signup: React.FC = () => {
       return t('networkError');
     }
 
-    return err.message || t('networkError');
+    return asErr.message || t('networkError');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -111,7 +112,7 @@ export const Signup: React.FC = () => {
           navigate('/onboarding');
         }, 1500);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(handleSupabaseError(err));
     } finally {
       setLoading(false);

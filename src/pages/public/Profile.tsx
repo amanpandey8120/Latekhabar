@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 
 export const Profile: React.FC = () => {
-  const { user, signOut, savedArticleIds, updateProfile, uploadAvatarFile } = useAuth();
+  const { user, signOut, savedArticleIds, updateProfile, uploadAndSaveAvatar } = useAuth();
   const { language, setLanguage, t } = useLanguage();
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
@@ -104,64 +104,70 @@ export const Profile: React.FC = () => {
     setAvatarError('');
     setSaving(true);
 
-    try {
-      let newAvatarUrl: string | undefined = undefined;
+    console.group('[Profile] handleSave');
+    console.info('user.id:', user.id);
+    console.info('avatarFile:', avatarFile?.name ?? '(none)');
 
-      // Upload avatar if a new file was chosen
+    try {
+      // ── Step 1: upload avatar atomically if a new file was selected ──────
+      // uploadAndSaveAvatar handles Storage upload + profiles.avatar_url
+      // UPDATE + React state re-fetch as a single operation.
       if (avatarFile) {
         setUploadingAvatar(true);
-        const { url, error: uploadErr } = await uploadAvatarFile(avatarFile);
+        const { error: avatarErr } = await uploadAndSaveAvatar(avatarFile);
         setUploadingAvatar(false);
 
-        if (uploadErr) {
+        if (avatarErr) {
           const errMsg =
-            uploadErr instanceof Error
-              ? uploadErr.message
-              : String(uploadErr);
-          if (errMsg.includes('Invalid image')) {
-            setAvatarError(t('invalidImageType'));
-          } else if (errMsg.includes('exceeds 5MB')) {
-            setAvatarError(t('imageTooLarge'));
-          } else {
-            setAvatarError(errMsg || t('networkError'));
-          }
+            avatarErr instanceof Error ? avatarErr.message : String(avatarErr);
+          console.error('[Profile] avatar save error:', errMsg);
+          setAvatarError(errMsg);
+          // Do not proceed — show the real storage error to the user
           setSaving(false);
+          console.groupEnd();
           return;
         }
 
-        if (url) newAvatarUrl = url;
+        console.info('[Profile] avatar upload+save: ✓');
+        setAvatarFile(null);
       }
 
+      // ── Step 2: save remaining profile fields ────────────────────────────
       const updates: Partial<import('../../types').UserProfile> = {
         fullName: fullName.trim() || user.fullName,
         language: selectedLanguage,
         state: selectedState || undefined,
         city: selectedCity || undefined,
       };
-      if (newAvatarUrl) updates.avatarUrl = newAvatarUrl;
 
+      console.info('[Profile] calling updateProfile:', updates);
       const { error: updateErr } = await updateProfile(updates);
+
       if (updateErr) {
-        setErrorMsg(
-          updateErr instanceof Error ? updateErr.message : t('networkError')
-        );
+        const errMsg =
+          updateErr instanceof Error ? updateErr.message : String(updateErr);
+        console.error('[Profile] updateProfile error:', errMsg);
+        setErrorMsg(errMsg);
+        console.groupEnd();
         return;
       }
 
-      // Also sync LanguageContext with chosen language
+      // Sync the LanguageContext toggle with the saved preference
       setLanguage(selectedLanguage);
-      setAvatarFile(null);
       setSuccessMsg(t('profileUpdatedSuccess'));
-
-      // Auto-clear success message
+      console.info('[Profile] profile save complete ✓');
       setTimeout(() => setSuccessMsg(''), 4000);
     } catch (err: unknown) {
-      setErrorMsg(err instanceof Error ? err.message : t('networkError'));
+      const errMsg = err instanceof Error ? err.message : t('networkError');
+      console.error('[Profile] unexpected exception:', err);
+      setErrorMsg(errMsg);
     } finally {
       setSaving(false);
       setUploadingAvatar(false);
+      console.groupEnd();
     }
   };
+
 
   const handleSignOut = async () => {
     await signOut();

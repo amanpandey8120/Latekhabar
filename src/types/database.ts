@@ -1,20 +1,17 @@
 /**
- * database.ts — Typed schema for all Supabase public tables.
+ * database.ts — Typed schema matching the ACTUAL Supabase public tables.
  *
- * Column names match the actual PostgreSQL snake_case column names.
- * Use these types in service-layer queries to avoid `any` casts.
- *
- * Usage:
- *   import type { DbProfile, DbNews, DbBookmark, DbNewsView } from '../types/database';
+ * Column names are verified against the live DB via PostgREST queries.
+ * Do NOT add columns that don't exist — they will cause HTTP 400 errors.
  */
 
 // ── public.profiles ───────────────────────────────────────────────────────────
 export interface DbProfile {
-  id: string;                   // uuid — equals auth.uid()
+  id: string;
   email: string;
   full_name: string | null;
   avatar_url: string | null;
-  role: 'user' | 'admin';      // never writable from the frontend
+  role: 'user' | 'admin';
   language: 'en' | 'hi' | null;
   state: string | null;
   city: string | null;
@@ -22,7 +19,6 @@ export interface DbProfile {
   updated_at: string | null;
 }
 
-/** Columns an authenticated user is permitted to update via RLS */
 export type DbProfileUpdate = Pick<
   DbProfile,
   'full_name' | 'avatar_url' | 'language' | 'state' | 'city'
@@ -41,36 +37,35 @@ export interface DbCategory {
 }
 
 // ── public.news ───────────────────────────────────────────────────────────────
+// VERIFIED columns — tested against live DB. Do not add columns not listed here.
 export interface DbNews {
   id: string;
   slug: string;
   title_en: string;
   title_hi: string | null;
-  excerpt_en: string | null;
-  excerpt_hi: string | null;
+  // Excerpt/summary: actual DB columns are summary_en / summary_hi
+  summary_en: string | null;
+  summary_hi: string | null;
   content_en: string | null;
   content_hi: string | null;
   category_id: string | null;
-  category_slug: string | null;
+  // Author details: only author_id exists in DB; name/avatar come from profiles join
   author_id: string | null;
-  author_name: string | null;
-  author_avatar: string | null;
-  author_role: string | null;
   published_at: string;
-  status: 'draft' | 'published' | 'archived';
-  is_published: boolean;
-  is_breaking: boolean;
+  // status values in DB: 'published' | 'draft' | 'archived' | 'active' | 'live' | 'pending'
+  status: string;
+  // Feature flags that actually exist:
   is_trending: boolean;
   is_featured: boolean;
-  image_url: string | null;
-  image_caption: string | null;
-  video_url: string | null;
+  // is_published does NOT exist — use status = 'published'
+  // is_breaking does NOT exist in DB
+  // Image: actual DB column is featured_image (not image_url)
+  featured_image: string | null;
+  // These do NOT exist in DB: video_url, image_caption, tags,
+  //   author_name, author_avatar, author_role, category_slug,
+  //   read_time_minutes, views_count, saves_count, is_breaking, is_published
   state: string | null;
   city: string | null;
-  read_time_minutes: number;
-  views_count: number;
-  saves_count: number;
-  tags: string[];
   created_at: string;
   updated_at: string | null;
 }
@@ -98,12 +93,11 @@ export interface DbNewsVideo {
 // ── public.bookmarks ──────────────────────────────────────────────────────────
 export interface DbBookmark {
   id: string;
-  user_id: string;   // auth.uid() — enforced by RLS
+  user_id: string;
   news_id: string;
   created_at: string;
 }
 
-/** Shape returned when joining bookmarks → news */
 export interface DbBookmarkWithNews extends DbBookmark {
   news: DbNews | null;
 }
@@ -112,7 +106,7 @@ export interface DbBookmarkWithNews extends DbBookmark {
 export interface DbNewsView {
   id: string;
   news_id: string;
-  user_id: string | null;   // null for anonymous views
+  user_id: string | null;
   user_agent: string | null;
   viewed_at: string;
 }
