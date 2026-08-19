@@ -23,10 +23,11 @@ export const Login: React.FC = () => {
     }
   }
 
-  const handleSupabaseError = (err: any): string => {
+  const handleSupabaseError = (err: unknown): string => {
     if (!err) return t('networkError');
-    const msg = (err.message || err.toString() || '').toLowerCase();
-    const code = (err.code || '').toLowerCase();
+    const asError = err as { message?: string; code?: string; toString?: () => string };
+    const msg = (asError.message || (typeof err === 'object' ? '' : String(err)) || '').toLowerCase();
+    const code = (asError.code || '').toLowerCase();
 
     if (
       msg.includes('invalid login credentials') ||
@@ -48,7 +49,7 @@ export const Login: React.FC = () => {
       return t('networkError');
     }
 
-    return err.message || t('networkError');
+    return asError.message || t('networkError');
   };
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
@@ -79,7 +80,8 @@ export const Login: React.FC = () => {
 
       if (signedInUser) {
         setSuccess(t('loginSuccess'));
-        const userRole = profile?.role || (signedInUser.email?.includes('admin') ? 'admin' : 'user');
+        // Role comes exclusively from profile.role fetched from public.profiles — never from email
+        const userRole = profile?.role ?? 'user';
         setTimeout(() => {
           if (userRole === 'admin') {
             navigate('/admin');
@@ -88,7 +90,7 @@ export const Login: React.FC = () => {
           }
         }, 1200);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(handleSupabaseError(err));
     } finally {
       setLoading(false);

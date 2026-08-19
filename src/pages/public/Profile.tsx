@@ -114,13 +114,16 @@ export const Profile: React.FC = () => {
         setUploadingAvatar(false);
 
         if (uploadErr) {
-          const msg = uploadErr.message || '';
-          if (msg.includes('Invalid image')) {
+          const errMsg =
+            uploadErr instanceof Error
+              ? uploadErr.message
+              : String(uploadErr);
+          if (errMsg.includes('Invalid image')) {
             setAvatarError(t('invalidImageType'));
-          } else if (msg.includes('exceeds 5MB')) {
+          } else if (errMsg.includes('exceeds 5MB')) {
             setAvatarError(t('imageTooLarge'));
           } else {
-            setAvatarError(msg || t('networkError'));
+            setAvatarError(errMsg || t('networkError'));
           }
           setSaving(false);
           return;
@@ -129,7 +132,7 @@ export const Profile: React.FC = () => {
         if (url) newAvatarUrl = url;
       }
 
-      const updates: any = {
+      const updates: Partial<import('../../types').UserProfile> = {
         fullName: fullName.trim() || user.fullName,
         language: selectedLanguage,
         state: selectedState || undefined,
@@ -139,7 +142,9 @@ export const Profile: React.FC = () => {
 
       const { error: updateErr } = await updateProfile(updates);
       if (updateErr) {
-        setErrorMsg(updateErr.message || t('networkError'));
+        setErrorMsg(
+          updateErr instanceof Error ? updateErr.message : t('networkError')
+        );
         return;
       }
 
@@ -150,8 +155,8 @@ export const Profile: React.FC = () => {
 
       // Auto-clear success message
       setTimeout(() => setSuccessMsg(''), 4000);
-    } catch (err: any) {
-      setErrorMsg(err?.message || t('networkError'));
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : t('networkError'));
     } finally {
       setSaving(false);
       setUploadingAvatar(false);

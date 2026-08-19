@@ -1,29 +1,81 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import type { Article } from '../../types';
+import { loadBookmarkedArticles } from '../../services/bookmarkService';
 import { newsService } from '../../services/newsService';
+import { isSupabaseConfigured } from '../../lib/supabase';
 import { ArticleCard } from '../../components/news/ArticleCard';
 import { EmptyState } from '../../components/common/EmptyState';
 import { SkeletonCard } from '../../components/common/SkeletonLoader';
-import { Bookmark } from 'lucide-react';
-import { useLanguage } from '../../context/LanguageContext';
+import { Bookmark, LogIn } from 'lucide-react';
 
 export const SavedNews: React.FC = () => {
-  const { savedArticleIds } = useAuth();
+  const { user, savedArticleIds } = useAuth();
   const { t } = useLanguage();
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function loadSaved() {
       setLoading(true);
-      const allArts = await newsService.getArticles();
-      const bookmarked = allArts.filter((a) => savedArticleIds.includes(a.id));
-      setArticles(bookmarked);
-      setLoading(false);
+
+      if (user && isSupabaseConfigured()) {
+        // Primary path: join bookmarks → news in one Supabase query
+        const saved = await loadBookmarkedArticles();
+        if (!cancelled) setArticles(saved);
+      } else if (savedArticleIds.length > 0) {
+        // Fallback (mock mode or unauthenticated with in-memory IDs):
+        // fetch all articles then filter by the in-memory bookmark set
+        const all = await newsService.getArticles();
+        if (!cancelled) {
+          setArticles(all.filter((a) => savedArticleIds.includes(a.id)));
+        }
+      } else {
+        if (!cancelled) setArticles([]);
+      }
+
+      if (!cancelled) setLoading(false);
     }
+
     loadSaved();
-  }, [savedArticleIds]);
+    return () => { cancelled = true; };
+    // Re-run whenever savedArticleIds changes (optimistic toggle updates the count)
+  }, [user, savedArticleIds]);
+
+  // ── Not logged in ───────────────────────────────────────────────────────────
+  if (!user) {
+    return (
+      <div className="space-y-6 max-w-5xl mx-auto">
+        <div className="flex items-center gap-3 border-b border-gray-200 dark:border-gray-800 pb-4">
+          <div className="p-2.5 bg-red-100 dark:bg-red-950 text-primary rounded-lg">
+            <Bookmark size={24} />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold font-headline-md text-on-surface dark:text-white">
+              {t('savedNews')}
+            </h1>
+          </div>
+        </div>
+        <EmptyState
+          title="Sign in to view your saved stories"
+          message="Create an account or sign in to bookmark articles and read them later."
+          action={
+            <Link
+              to="/login"
+              className="inline-flex items-center gap-2 mt-4 px-5 py-2.5 bg-primary text-white rounded-xl text-sm font-semibold hover:bg-red-700 transition-colors"
+            >
+              <LogIn size={16} />
+              Sign In
+            </Link>
+          }
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
@@ -35,12 +87,17 @@ export const SavedNews: React.FC = () => {
           <h1 className="text-2xl font-bold font-headline-md text-on-surface dark:text-white">
             {t('savedNews')}
           </h1>
-          <p className="text-xs text-gray-500">{articles.length} bookmarked articles in your collection</p>
+          <p className="text-xs text-gray-500">
+            {loading
+              ? 'Loading…'
+              : `${articles.length} bookmarked ${articles.length === 1 ? 'article' : 'articles'} in your collection`}
+          </p>
         </div>
       </div>
 
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <SkeletonCard />
           <SkeletonCard />
           <SkeletonCard />
         </div>

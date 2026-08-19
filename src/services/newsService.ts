@@ -1,65 +1,63 @@
 import { INITIAL_ARTICLES, INITIAL_CATEGORIES, LOCATIONS_DATA } from '../lib/mockData';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import type { Article, Category, LocationData, ArticleImage, ArticleVideo } from '../types';
+import type { DbCategory, DbNews, DbNewsImage, DbNewsVideo } from '../types/database';
 
 let localArticlesStore = [...INITIAL_ARTICLES];
 let localCategoriesStore = [...INITIAL_CATEGORIES];
 
 // Helper to convert database snake_case row to TypeScript Article interface
 export const mapDbRowToArticle = (
-  row: any,
+  row: DbNews | Record<string, unknown>,
   categoryMap?: Map<string, { nameEn: string; nameHi: string; slug: string }>,
   images?: ArticleImage[],
   videos?: ArticleVideo[]
 ): Article => {
-  let categoryNameEn = row.category_name_en || row.categoryNameEn || 'General';
-  let categoryNameHi = row.category_name_hi || row.categoryNameHi || 'सामान्य';
+  const r = row as Record<string, unknown>;
+  let categoryNameEn = (r.category_name_en ?? r.categoryNameEn ?? 'General') as string;
+  let categoryNameHi = (r.category_name_hi ?? r.categoryNameHi ?? 'सामान्य') as string;
 
-  if (categoryMap && row.category_id && categoryMap.has(row.category_id)) {
-    const cat = categoryMap.get(row.category_id)!;
+  if (categoryMap && r.category_id && categoryMap.has(r.category_id as string)) {
+    const cat = categoryMap.get(r.category_id as string)!;
     categoryNameEn = cat.nameEn;
     categoryNameHi = cat.nameHi;
   }
 
   return {
-    id: row.id,
-    slug: row.slug,
-    titleEn: row.title_en || row.titleEn || '',
-    titleHi: row.title_hi || row.titleHi || row.title_en || row.titleEn || '',
-    excerptEn: row.excerpt_en || row.excerptEn || '',
-    excerptHi: row.excerpt_hi || row.excerptHi || row.excerpt_en || row.excerptEn || '',
-    contentEn: row.content_en || row.contentEn || '',
-    contentHi: row.content_hi || row.contentHi || row.content_en || row.contentEn || '',
-    categoryId: row.category_id || row.categoryId || '',
+    id: r.id as string,
+    slug: r.slug as string,
+    titleEn: (r.title_en ?? r.titleEn ?? '') as string,
+    titleHi: (r.title_hi ?? r.titleHi ?? r.title_en ?? r.titleEn ?? '') as string,
+    excerptEn: (r.excerpt_en ?? r.excerptEn ?? '') as string,
+    excerptHi: (r.excerpt_hi ?? r.excerptHi ?? r.excerpt_en ?? r.excerptEn ?? '') as string,
+    contentEn: (r.content_en ?? r.contentEn ?? '') as string,
+    contentHi: (r.content_hi ?? r.contentHi ?? r.content_en ?? r.contentEn ?? '') as string,
+    categoryId: (r.category_id ?? r.categoryId ?? '') as string,
     categoryNameEn,
     categoryNameHi,
     author: {
-      name: row.author_name || row.author?.name || 'Editorial Desk',
-      avatar:
-        row.author_avatar ||
-        row.author?.avatar ||
-        'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=200',
-      role: row.author_role || row.author?.role || 'Chief Editor',
+      name: (r.author_name ?? (r.author as { name?: string } | undefined)?.name ?? 'Editorial Desk') as string,
+      avatar: (r.author_avatar ?? (r.author as { avatar?: string } | undefined)?.avatar ??
+        'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=200') as string,
+      role: (r.author_role ?? (r.author as { role?: string } | undefined)?.role ?? 'Chief Editor') as string,
     },
-    publishedAt: row.published_at || row.publishedAt || new Date().toISOString(),
-    status: row.status || 'published',
-    imageUrl:
-      row.image_url ||
-      row.imageUrl ||
-      'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&q=80&w=1200',
-    imageCaption: row.image_caption || row.imageCaption,
-    videoUrl: row.video_url || row.videoUrl,
-    images: images || [],
-    videos: videos || [],
-    isBreaking: row.is_breaking ?? row.isBreaking ?? false,
-    isTrending: row.is_trending ?? row.isTrending ?? false,
-    isFeatured: row.is_featured ?? row.isFeatured ?? false,
-    state: row.state,
-    city: row.city,
-    readTimeMinutes: row.read_time_minutes || row.readTimeMinutes || 4,
-    viewsCount: row.views_count ?? row.viewsCount ?? 0,
-    savesCount: row.saves_count ?? row.savesCount ?? 0,
-    tags: row.tags || [],
+    publishedAt: (r.published_at ?? r.publishedAt ?? new Date().toISOString()) as string,
+    status: (r.status ?? 'published') as 'draft' | 'published' | 'archived',
+    imageUrl: (r.image_url ?? r.imageUrl ??
+      'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&q=80&w=1200') as string,
+    imageCaption: (r.image_caption ?? r.imageCaption) as string | undefined,
+    videoUrl: (r.video_url ?? r.videoUrl) as string | undefined,
+    images: images ?? [],
+    videos: videos ?? [],
+    isBreaking: (r.is_breaking ?? r.isBreaking ?? false) as boolean,
+    isTrending: (r.is_trending ?? r.isTrending ?? false) as boolean,
+    isFeatured: (r.is_featured ?? r.isFeatured ?? false) as boolean,
+    state: r.state as string | undefined,
+    city: r.city as string | undefined,
+    readTimeMinutes: (r.read_time_minutes ?? r.readTimeMinutes ?? 4) as number,
+    viewsCount: (r.views_count ?? r.viewsCount ?? 0) as number,
+    savesCount: (r.saves_count ?? r.savesCount ?? 0) as number,
+    tags: (r.tags ?? []) as string[],
   };
 };
 
@@ -85,7 +83,7 @@ export const newsService = {
           .from('categories')
           .select('id, slug, name_en, name_hi');
         const catMap = new Map<string, { nameEn: string; nameHi: string; slug: string }>();
-        catRows?.forEach((c) => {
+        (catRows as Pick<DbCategory, 'id' | 'slug' | 'name_en' | 'name_hi'>[] | null)?.forEach((c) => {
           catMap.set(c.id, { nameEn: c.name_en, nameHi: c.name_hi, slug: c.slug });
         });
 
@@ -150,7 +148,7 @@ export const newsService = {
 
         const { data, error } = await query;
         if (!error && data && data.length > 0) {
-          return data.map((row) => mapDbRowToArticle(row, catMap));
+          return (data as DbNews[]).map((row) => mapDbRowToArticle(row, catMap));
         }
       } catch (err) {
         console.warn('Supabase news query exception, falling back to mock dataset', err);
@@ -225,8 +223,8 @@ export const newsService = {
               .eq('id', newsRow.category_id)
               .single();
             if (catData) {
-              categoryNameEn = catData.name_en;
-              categoryNameHi = catData.name_hi;
+              categoryNameEn = (catData as Pick<DbCategory, 'name_en' | 'name_hi'>).name_en;
+              categoryNameHi = (catData as Pick<DbCategory, 'name_en' | 'name_hi'>).name_hi;
             }
           }
 
@@ -237,11 +235,13 @@ export const newsService = {
             .eq('news_id', newsRow.id)
             .order('display_order', { ascending: true });
 
-          const articleImages: ArticleImage[] = (imageRows || []).map((img) => ({
+          const articleImages: ArticleImage[] = (
+            (imageRows as Pick<DbNewsImage, 'id' | 'image_url' | 'caption_en' | 'caption_hi'>[] | null) ?? []
+          ).map((img) => ({
             id: img.id,
             imageUrl: img.image_url,
-            captionEn: img.caption_en || undefined,
-            captionHi: img.caption_hi || undefined,
+            captionEn: img.caption_en ?? undefined,
+            captionHi: img.caption_hi ?? undefined,
           }));
 
           // Fetch associated videos from news_videos table
@@ -251,11 +251,13 @@ export const newsService = {
             .eq('news_id', newsRow.id)
             .order('display_order', { ascending: true });
 
-          const articleVideos: ArticleVideo[] = (videoRows || []).map((vid) => ({
+          const articleVideos: ArticleVideo[] = (
+            (videoRows as Pick<DbNewsVideo, 'id' | 'video_url' | 'title_en' | 'title_hi'>[] | null) ?? []
+          ).map((vid) => ({
             id: vid.id,
             videoUrl: vid.video_url,
-            titleEn: vid.title_en || undefined,
-            titleHi: vid.title_hi || undefined,
+            titleEn: vid.title_en ?? undefined,
+            titleHi: vid.title_hi ?? undefined,
           }));
 
           const art = mapDbRowToArticle(newsRow, undefined, articleImages, articleVideos);
@@ -296,13 +298,13 @@ export const newsService = {
         const { data, error } = await query.order('display_order', { ascending: true });
 
         if (!error && data && data.length > 0) {
-          return data.map((c) => ({
+          return (data as DbCategory[]).map((c) => ({
             id: c.id,
             slug: c.slug,
             nameEn: c.name_en,
             nameHi: c.name_hi,
-            descriptionEn: c.description_en || undefined,
-            descriptionHi: c.description_hi || undefined,
+            descriptionEn: c.description_en ?? undefined,
+            descriptionHi: c.description_hi ?? undefined,
             isActive: c.is_active,
           }));
         }
@@ -333,13 +335,13 @@ export const newsService = {
 
         if (!error && data) {
           const created: Category = {
-            id: data.id,
-            slug: data.slug,
-            nameEn: data.name_en,
-            nameHi: data.name_hi,
-            descriptionEn: data.description_en || undefined,
-            descriptionHi: data.description_hi || undefined,
-            isActive: data.is_active,
+            id: (data as DbCategory).id,
+            slug: (data as DbCategory).slug,
+            nameEn: (data as DbCategory).name_en,
+            nameHi: (data as DbCategory).name_hi,
+            descriptionEn: (data as DbCategory).description_en ?? undefined,
+            descriptionHi: (data as DbCategory).description_hi ?? undefined,
+            isActive: (data as DbCategory).is_active,
           };
           localCategoriesStore.push(created);
           return created;
@@ -464,7 +466,7 @@ export const newsService = {
   async updateArticle(id: string, updates: Partial<Article>): Promise<boolean> {
     if (isSupabaseConfigured()) {
       try {
-        const dbUpdates: any = {};
+        const dbUpdates: Record<string, unknown> = {};
         if (updates.titleEn !== undefined) dbUpdates.title_en = updates.titleEn;
         if (updates.titleHi !== undefined) dbUpdates.title_hi = updates.titleHi;
         if (updates.excerptEn !== undefined) dbUpdates.excerpt_en = updates.excerptEn;
@@ -508,7 +510,7 @@ export const newsService = {
   },
 
   // ── 9. UPLOAD NEWS IMAGE TO STORAGE ──────────────────────────────────────
-  async uploadNewsImage(file: File): Promise<{ url: string | null; error: any }> {
+  async uploadNewsImage(file: File): Promise<{ url: string | null; error: unknown }> {
     if (!file.type.startsWith('image/')) {
       return { url: null, error: new Error('Invalid image file type') };
     }
@@ -546,13 +548,16 @@ export const newsService = {
   },
 
   // ── 10. RECORD VIEW FOR ANALYTICS ────────────────────────────────────────
+  // userId is passed only for display/analytics purposes; RLS prevents
+  // a user from recording views under another user's ID.
   async recordView(newsId: string, userId?: string): Promise<void> {
     if (isSupabaseConfigured()) {
       try {
         await supabase.from('news_views').insert([
           {
             news_id: newsId,
-            user_id: userId || null,
+            // Only pass user_id when the caller is authenticated; anonymous = null
+            user_id: userId ?? null,
             user_agent: navigator.userAgent,
           },
         ]);
@@ -560,40 +565,5 @@ export const newsService = {
         console.warn('Record view error', err);
       }
     }
-  },
-
-  // ── 11. USER BOOKMARKS SYNCHRONIZATION ───────────────────────────────────
-  async getUserBookmarks(userId: string): Promise<string[]> {
-    if (isSupabaseConfigured() && userId) {
-      try {
-        const { data, error } = await supabase
-          .from('bookmarks')
-          .select('news_id')
-          .eq('user_id', userId);
-
-        if (!error && data) {
-          return data.map((b) => b.news_id);
-        }
-      } catch (err) {
-        console.warn('Get user bookmarks error', err);
-      }
-    }
-    return [];
-  },
-
-  async toggleBookmark(newsId: string, userId: string, currentlySaved: boolean): Promise<boolean> {
-    if (isSupabaseConfigured() && userId) {
-      try {
-        if (currentlySaved) {
-          await supabase.from('bookmarks').delete().eq('user_id', userId).eq('news_id', newsId);
-        } else {
-          await supabase.from('bookmarks').insert([{ user_id: userId, news_id: newsId }]);
-        }
-        return true;
-      } catch (err) {
-        console.warn('Toggle bookmark error', err);
-      }
-    }
-    return false;
   },
 };

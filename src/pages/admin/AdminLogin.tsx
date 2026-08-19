@@ -38,13 +38,13 @@ export const AdminLogin: React.FC = () => {
       const { user: signedInUser, profile, error: signInErr } = await signInWithEmail(email.trim(), password);
 
       if (signInErr) {
-        const msg = (signInErr.message || '').toLowerCase();
-        if (msg.includes('invalid login credentials') || msg.includes('invalid credentials')) {
+        const errMsg = (signInErr instanceof Error ? signInErr.message : String(signInErr)).toLowerCase();
+        if (errMsg.includes('invalid login credentials') || errMsg.includes('invalid credentials')) {
           setError('Invalid email or password.');
-        } else if (msg.includes('user not found')) {
+        } else if (errMsg.includes('user not found')) {
           setError('No account found with this email.');
         } else {
-          setError(signInErr.message || 'An error occurred. Please try again.');
+          setError((signInErr instanceof Error ? signInErr.message : null) || 'An error occurred. Please try again.');
         }
         return;
       }
@@ -62,8 +62,8 @@ export const AdminLogin: React.FC = () => {
       }
 
       navigate('/admin/dashboard', { replace: true });
-    } catch (err: any) {
-      setError(err?.message || 'An unexpected error occurred.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
     } finally {
       setSubmitting(false);
     }
