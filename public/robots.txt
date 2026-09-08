@@ -1,0 +1,22 @@
+# robots.txt for Late Khabar (https://latekhabar.vercel.app)
+User-agent: *
+Allow: /
+Allow: /category/
+Allow: /local
+Allow: /search
+Allow: /article/
+
+# Disallow private and administrative routes
+Disallow: /admin
+Disallow: /admin/
+Disallow: /login
+Disallow: /signup
+Disallow: /profile
+Disallow: /saved
+Disallow: /saved-news
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /onboarding
+
+# Sitemap location
+Sitemap: https://latekhabar.vercel.app/sitemap.xml
