@@ -33,6 +33,8 @@ export const TRANSLATIONS: Dictionary = {
   savedNews: { en: 'Saved Stories', hi: 'सहेजे गए लेख' },
   onboarding: { en: 'Preferences', hi: 'प्राथमिकताएं' },
   adminPanel: { en: 'Admin Panel', hi: 'एडमिन पैनल' },
+  contact: { en: 'Contact', hi: 'संपर्क' },
+  followUs: { en: 'Follow Us', hi: 'फॉलो करें' },
   language: { en: 'EN / HI', hi: 'हिन्दी / EN' },
 
   // Authentication & Signup
