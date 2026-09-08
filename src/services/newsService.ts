@@ -104,10 +104,24 @@ export const newsService = {
     }
 
     try {
-      // Build category resolution map
-      const { data: catRows } = await supabase
+      // Build category resolution map.
+      // IMPORTANT: If this query returns a 401/403, the Supabase `anon` role
+      // is missing a SELECT policy on public.categories. Fix in Supabase Dashboard:
+      //   ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
+      //   CREATE POLICY "categories_public_read" ON public.categories
+      //     FOR SELECT TO anon, authenticated USING (true);
+      const { data: catRows, error: catErr } = await supabase
         .from('categories')
         .select('id, slug, name_en, name_hi');
+      if (catErr) {
+        console.error(
+          '[newsService] getArticles — categories fetch failed.',
+          'HTTP status:', catErr.code,
+          'Message:', catErr.message,
+          'Details:', catErr.details,
+          '\nFix: grant SELECT on public.categories to anon role via Supabase RLS policy.'
+        );
+      }
       const catMap = new Map<string, { nameEn: string; nameHi: string; slug: string }>();
       (catRows as Pick<DbCategory, 'id' | 'slug' | 'name_en' | 'name_hi'>[] | null)
         ?.forEach((c) => catMap.set(c.id, { nameEn: c.name_en, nameHi: c.name_hi, slug: c.slug }));
@@ -303,12 +317,27 @@ export const newsService = {
     }
 
     try {
-      let query = supabase.from('categories').select('*');
+      // Columns queried: id, slug, name_en, name_hi, description_en, description_hi,
+      // is_active, display_order — all verified against public.categories schema.
+      // IMPORTANT: If this returns 401/403, the `anon` role is missing a SELECT policy.
+      // Fix in Supabase SQL Editor:
+      //   ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
+      //   CREATE POLICY "categories_public_read" ON public.categories
+      //     FOR SELECT TO anon, authenticated USING (true);
+      let query = supabase
+        .from('categories')
+        .select('id, slug, name_en, name_hi, description_en, description_hi, is_active, display_order');
       if (!includeInactive) query = query.eq('is_active', true);
       const { data, error } = await query.order('display_order', { ascending: true });
 
       if (error) {
-        console.error('[newsService] getCategories error:', error);
+        console.error(
+          '[newsService] getCategories — DB error.',
+          'Code:', error.code,
+          'Message:', error.message,
+          'Details:', error.details,
+          '\nIf code is 401/403: grant SELECT on public.categories to anon role via Supabase RLS policy.'
+        );
         return [];
       }
 
