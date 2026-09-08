@@ -201,7 +201,7 @@ export const UserManagement: React.FC = () => {
         </div>
       )}
 
-      {/* ── Mock mode warning ── */}
+      {/* ── Unconfigured Supabase warning ── */}
       {!loading && !error && !isSupabaseConfigured() && (
         <div className="flex items-center gap-3 p-4 bg-yellow-950/40 border border-yellow-800 rounded-xl text-yellow-300 text-sm">
           <AlertCircle size={18} className="flex-shrink-0" />

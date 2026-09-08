@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
-import { LOCATIONS_DATA } from '../../lib/mockData';
+import { LOCATIONS_DATA } from '../../constants/locations';
 import {
   Bookmark,
   Shield,

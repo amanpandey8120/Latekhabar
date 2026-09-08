@@ -4,9 +4,6 @@
  * All bookmark operations against public.bookmarks.
  * RLS on the table enforces user_id = auth.uid() — the frontend never
  * passes a user_id parameter; Supabase resolves it from the session.
- *
- * Falls back to an in-memory set when Supabase is not configured so that
- * local dev (signInAsAdminMock) still works without a real DB.
  */
 
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
@@ -14,13 +11,10 @@ import type { Article } from '../types';
 import type { DbBookmark } from '../types/database';
 import { mapDbRowToArticle } from './newsService';
 
-// In-memory fallback store used only when Supabase is not configured
-const mockBookmarkIds = new Set<string>();
-
 // ── 1. Load bookmark IDs for the current authenticated user ──────────────────
 export async function loadBookmarkIds(): Promise<string[]> {
   if (!isSupabaseConfigured()) {
-    return Array.from(mockBookmarkIds);
+    return [];
   }
 
   const { data, error } = await supabase
@@ -38,7 +32,6 @@ export async function loadBookmarkIds(): Promise<string[]> {
 // ── 2. Load full article objects for the current user's bookmarks ────────────
 export async function loadBookmarkedArticles(): Promise<Article[]> {
   if (!isSupabaseConfigured()) {
-    // In mock mode we can't join — return empty; SavedNews will fall back
     return [];
   }
 
@@ -78,8 +71,7 @@ export async function loadBookmarkedArticles(): Promise<Article[]> {
 // ── 3. Add a bookmark ────────────────────────────────────────────────────────
 export async function addBookmark(newsId: string): Promise<boolean> {
   if (!isSupabaseConfigured()) {
-    mockBookmarkIds.add(newsId);
-    return true;
+    return false;
   }
 
   const { error } = await supabase
@@ -98,8 +90,7 @@ export async function addBookmark(newsId: string): Promise<boolean> {
 // ── 4. Remove a bookmark ─────────────────────────────────────────────────────
 export async function removeBookmark(newsId: string): Promise<boolean> {
   if (!isSupabaseConfigured()) {
-    mockBookmarkIds.delete(newsId);
-    return true;
+    return false;
   }
 
   const { error } = await supabase

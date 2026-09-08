@@ -4,8 +4,6 @@ import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import type { Article } from '../../types';
 import { loadBookmarkedArticles } from '../../services/bookmarkService';
-import { newsService } from '../../services/newsService';
-import { isSupabaseConfigured } from '../../lib/supabase';
 import { ArticleCard } from '../../components/news/ArticleCard';
 import { EmptyState } from '../../components/common/EmptyState';
 import { SkeletonCard } from '../../components/common/SkeletonLoader';
@@ -21,29 +19,22 @@ export const SavedNews: React.FC = () => {
     let cancelled = false;
 
     async function loadSaved() {
-      setLoading(true);
-
-      if (user && isSupabaseConfigured()) {
-        // Primary path: join bookmarks → news in one Supabase query
-        const saved = await loadBookmarkedArticles();
-        if (!cancelled) setArticles(saved);
-      } else if (savedArticleIds.length > 0) {
-        // Fallback (mock mode or unauthenticated with in-memory IDs):
-        // fetch all articles then filter by the in-memory bookmark set
-        const all = await newsService.getArticles();
-        if (!cancelled) {
-          setArticles(all.filter((a) => savedArticleIds.includes(a.id)));
-        }
-      } else {
-        if (!cancelled) setArticles([]);
+      if (!user) {
+        setArticles([]);
+        setLoading(false);
+        return;
       }
 
-      if (!cancelled) setLoading(false);
+      setLoading(true);
+      const saved = await loadBookmarkedArticles();
+      if (!cancelled) {
+        setArticles(saved);
+        setLoading(false);
+      }
     }
 
     loadSaved();
     return () => { cancelled = true; };
-    // Re-run whenever savedArticleIds changes (optimistic toggle updates the count)
   }, [user, savedArticleIds]);
 
   // ── Not logged in ───────────────────────────────────────────────────────────

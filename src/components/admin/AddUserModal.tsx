@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { LOCATIONS_DATA } from '../../lib/mockData';
+import { LOCATIONS_DATA } from '../../constants/locations';
 import { adminCreateUser } from '../../services/adminService';
 import type { CreateUserPayload } from '../../services/adminService';
 import {

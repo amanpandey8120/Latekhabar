@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { newsService } from '../../services/newsService';
 import { useAuth } from '../../context/AuthContext';
-import { LOCATIONS_DATA } from '../../lib/mockData';
+import { LOCATIONS_DATA } from '../../constants/locations';
 import type { Category } from '../../types';
 import { Upload, Image as ImageIcon, Video, AlertCircle, CheckCircle2, Loader2, Camera } from 'lucide-react';
 

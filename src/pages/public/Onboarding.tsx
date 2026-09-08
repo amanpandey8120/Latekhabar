@@ -1,16 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { INITIAL_CATEGORIES, LOCATIONS_DATA } from '../../lib/mockData';
-import { Check, Sparkles, MapPin } from 'lucide-react';
+import { newsService } from '../../services/newsService';
+import { LOCATIONS_DATA } from '../../constants/locations';
+import type { Category } from '../../types';
+import { Check, Sparkles, MapPin, Loader2 } from 'lucide-react';
 
 export const Onboarding: React.FC = () => {
   const { user, updateProfile } = useAuth();
   const navigate = useNavigate();
 
-  const [selectedCats, setSelectedCats] = useState<string[]>(user?.preferredCategories || ['cat-1', 'cat-6']);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loadingCats, setLoadingCats] = useState(true);
+  const [selectedCats, setSelectedCats] = useState<string[]>(user?.preferredCategories || []);
   const [selectedState, setSelectedState] = useState<string>(user?.state || 'Delhi');
   const [selectedCity, setSelectedCity] = useState<string>(user?.city || 'New Delhi');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    async function loadCategories() {
+      setLoadingCats(true);
+      const cats = await newsService.getCategories();
+      setCategories(cats);
+      setSelectedCats((prev) => (prev.length === 0 && cats.length > 0 ? cats.slice(0, 2).map((c) => c.id) : prev));
+      setLoadingCats(false);
+    }
+    loadCategories();
+  }, []);
 
   const toggleCat = (catId: string) => {
     setSelectedCats((prev) =>
@@ -18,12 +34,14 @@ export const Onboarding: React.FC = () => {
     );
   };
 
-  const handleFinish = () => {
-    updateProfile({
+  const handleFinish = async () => {
+    setSaving(true);
+    await updateProfile({
       preferredCategories: selectedCats,
       state: selectedState,
       city: selectedCity,
     });
+    setSaving(false);
     navigate('/');
   };
 
@@ -46,25 +64,34 @@ export const Onboarding: React.FC = () => {
       {/* Step 1: Categories Selection */}
       <div className="bg-white dark:bg-[#1c1c1c] rounded-xl p-6 border border-gray-200 dark:border-gray-800 space-y-4 shadow-sm">
         <h3 className="text-base font-bold text-on-surface dark:text-white">1. Choose Topics</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {INITIAL_CATEGORIES.map((cat) => {
-            const isSelected = selectedCats.includes(cat.id);
-            return (
-              <button
-                key={cat.id}
-                onClick={() => toggleCat(cat.id)}
-                className={`flex items-center justify-between p-3 rounded-lg text-xs font-semibold border transition-all ${
-                  isSelected
-                    ? 'border-primary bg-red-50 dark:bg-red-950/40 text-primary dark:text-primary-fixed shadow-sm'
-                    : 'border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-gray-400'
-                }`}
-              >
-                <span>{cat.nameEn}</span>
-                {isSelected && <Check size={16} className="text-primary" />}
-              </button>
-            );
-          })}
-        </div>
+        {loadingCats ? (
+          <div className="flex items-center justify-center py-8 text-gray-400 gap-2">
+            <Loader2 size={18} className="animate-spin text-primary" />
+            <span className="text-xs">Loading topics...</span>
+          </div>
+        ) : categories.length > 0 ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {categories.map((cat) => {
+              const isSelected = selectedCats.includes(cat.id);
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => toggleCat(cat.id)}
+                  className={`flex items-center justify-between p-3 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+                    isSelected
+                      ? 'border-primary bg-red-50 dark:bg-red-950/40 text-primary dark:text-primary-fixed shadow-sm'
+                      : 'border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-gray-400'
+                  }`}
+                >
+                  <span>{cat.nameEn}</span>
+                  {isSelected && <Check size={16} className="text-primary" />}
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-xs text-gray-500">No categories found.</p>
+        )}
       </div>
 
       {/* Step 2: Location Selection */}
@@ -114,9 +141,11 @@ export const Onboarding: React.FC = () => {
       <div className="flex justify-end">
         <button
           onClick={handleFinish}
-          className="px-8 py-3 bg-primary text-white rounded-xl text-sm font-bold hover:bg-primary-container shadow-md transition-all"
+          disabled={saving}
+          className="flex items-center gap-2 px-8 py-3 bg-primary text-white rounded-xl text-sm font-bold hover:bg-primary-container shadow-md transition-all disabled:opacity-60 cursor-pointer"
         >
-          Save & Launch Newsfeed
+          {saving && <Loader2 size={16} className="animate-spin" />}
+          <span>Save &amp; Launch Newsfeed</span>
         </button>
       </div>
     </div>

@@ -47,7 +47,7 @@ export async function adminCreateUser(
   payload: CreateUserPayload
 ): Promise<CreateUserResult> {
   if (!isSupabaseConfigured()) {
-    return { error: 'Supabase is not configured — cannot create users in mock mode.' };
+    return { error: 'Supabase is not configured.' };
   }
 
   // Get the caller's current JWT to forward to the Edge Function

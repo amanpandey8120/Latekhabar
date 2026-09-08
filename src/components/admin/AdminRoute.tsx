@@ -12,17 +12,11 @@ import { supabase, isSupabaseConfigured } from '../../lib/supabase';
  *   1. getSession()  — verifies a live Supabase session exists.
  *   2. profiles query — fetches profiles.role for the authenticated user ID.
  *
- * The AuthContext cached value (localStorage) is intentionally NOT used here,
- * so a stale or tampered cache can never grant admin access.
- *
  * Outcomes:
  *   • No session           → <Navigate to="/admin/login" />
  *   • Profile missing      → <Navigate to="/" />           (safe deny)
  *   • role !== 'admin'     → Access Denied UI → <Navigate to="/" />
  *   • role === 'admin'     → <Outlet /> (renders child admin routes)
- *
- * Mock-mode fallback (Supabase not configured):
- *   Falls back to the AuthContext user so local dev with signInAsAdminMock works.
  */
 
 type CheckState = 'loading' | 'allowed' | 'denied_not_admin' | 'denied_no_session' | 'denied_no_profile';
@@ -34,25 +28,11 @@ const AdminRoute: React.FC = () => {
     let cancelled = false;
 
     const verify = async () => {
-      // ── Mock / offline dev mode ──────────────────────────────────────────
       if (!isSupabaseConfigured()) {
-        const raw = localStorage.getItem('latekhabar_user');
-        if (!raw) {
-          if (!cancelled) setCheckState('denied_no_session');
-          return;
-        }
-        try {
-          const profile = JSON.parse(raw);
-          if (!cancelled) {
-            setCheckState(profile?.role === 'admin' ? 'allowed' : 'denied_not_admin');
-          }
-        } catch {
-          if (!cancelled) setCheckState('denied_no_session');
-        }
+        if (!cancelled) setCheckState('denied_no_session');
         return;
       }
 
-      // ── Live Supabase check ──────────────────────────────────────────────
       // Step 1: verify an active session exists
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
 
@@ -117,8 +97,8 @@ const AdminRoute: React.FC = () => {
         <ShieldOff size={48} className="text-red-500" />
         <h1 className="text-2xl font-bold text-white">Access Denied</h1>
         <p className="text-gray-400 text-sm max-w-sm">
-          You do not have administrator privileges. Please contact your system administrator if
-          you believe this is a mistake.
+          You do not have administrator privileges. Access requires an administrator account
+          verified in the database.
         </p>
         <a
           href="/"
