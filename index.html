@@ -1,68 +1,79 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/logo.png?v=2" id="app-favicon" />
-    <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico?v=2" />
-    <link rel="apple-touch-icon" href="/logo.png?v=2" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <!-- Primary SEO Meta Tags -->
-    <title>Late Khabar - Modern Editorial News Platform</title>
-    <meta name="title" content="Late Khabar - Modern Editorial News Platform" />
-    <meta name="description" content="Late Khabar is a premier bilingual editorial news platform delivering breaking alerts, trending national and world news, and regional local journalism in English and Hindi." />
-    <meta name="keywords" content="Late Khabar, News, Hindi News, English News, Breaking News, National News, International News, Regional News, Rewa News, India News" />
-    <meta name="author" content="Late Khabar Media Inc." />
-    <meta name="robots" content="index, follow" />
-    <link rel="canonical" href="https://latekhabar.vercel.app/" />
+<head>
+  <meta name="google-site-verification" content="aDe8HBH3JTUYKaRiezgEnj9ELLv7QwEZGeingBQ6qe0" />
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/png" href="/logo.png?v=2" id="app-favicon" />
+  <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico?v=2" />
+  <link rel="apple-touch-icon" href="/logo.png?v=2" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <!-- Open Graph / Facebook -->
-    <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="Late Khabar" />
-    <meta property="og:url" content="https://latekhabar.vercel.app/" />
-    <meta property="og:title" content="Late Khabar - Modern Editorial News Platform" />
-    <meta property="og:description" content="Deliver breaking, trending, national, international, and regional local news with bilingual coverage in English and Hindi." />
-    <meta property="og:image" content="https://latekhabar.vercel.app/logo.png" />
-    <meta property="og:locale" content="en_IN" />
-    <meta property="og:locale:alternate" content="hi_IN" />
+  <!-- Primary SEO Meta Tags -->
+  <title>Late Khabar - Modern Editorial News Platform</title>
+  <meta name="title" content="Late Khabar - Modern Editorial News Platform" />
+  <meta name="description"
+    content="Late Khabar is a premier bilingual editorial news platform delivering breaking alerts, trending national and world news, and regional local journalism in English and Hindi." />
+  <meta name="keywords"
+    content="Late Khabar, News, Hindi News, English News, Breaking News, National News, International News, Regional News, Rewa News, India News" />
+  <meta name="author" content="Late Khabar Media Inc." />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://latekhabar.vercel.app/" />
 
-    <!-- Twitter -->
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:url" content="https://latekhabar.vercel.app/" />
-    <meta name="twitter:title" content="Late Khabar - Modern Editorial News Platform" />
-    <meta name="twitter:description" content="Deliver breaking, trending, national, international, and regional local news with bilingual coverage in English and Hindi." />
-    <meta name="twitter:image" content="https://latekhabar.vercel.app/logo.png" />
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Late Khabar" />
+  <meta property="og:url" content="https://latekhabar.vercel.app/" />
+  <meta property="og:title" content="Late Khabar - Modern Editorial News Platform" />
+  <meta property="og:description"
+    content="Deliver breaking, trending, national, international, and regional local news with bilingual coverage in English and Hindi." />
+  <meta property="og:image" content="https://latekhabar.vercel.app/logo.png" />
+  <meta property="og:locale" content="en_IN" />
+  <meta property="og:locale:alternate" content="hi_IN" />
 
-    <script>
-      document.title = "Late Khabar - Modern Editorial News Platform";
-      (function() {
-        var link = document.getElementById('app-favicon');
-        if (link) link.href = '/logo.png?v=' + Date.now();
-        var saved = localStorage.getItem('latekhabar_theme');
-        if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-          document.documentElement.classList.add('dark');
-          document.documentElement.classList.remove('light');
-        } else {
-          document.documentElement.classList.add('light');
-          document.documentElement.classList.remove('dark');
-        }
-        if ('serviceWorker' in navigator) {
-          navigator.serviceWorker.getRegistrations().then(function(registrations) {
-            for(let registration of registrations) {
-              registration.unregister();
-            }
-          });
-        }
-      })();
-    </script>
-    <!-- Fonts from Google -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600;1,700&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
-  </head>
-  <body class="bg-background text-on-background font-article-body antialiased min-h-screen">
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:url" content="https://latekhabar.vercel.app/" />
+  <meta name="twitter:title" content="Late Khabar - Modern Editorial News Platform" />
+  <meta name="twitter:description"
+    content="Deliver breaking, trending, national, international, and regional local news with bilingual coverage in English and Hindi." />
+  <meta name="twitter:image" content="https://latekhabar.vercel.app/logo.png" />
+
+  <script>
+    document.title = "Late Khabar - Modern Editorial News Platform";
+    (function () {
+      var link = document.getElementById('app-favicon');
+      if (link) link.href = '/logo.png?v=' + Date.now();
+      var saved = localStorage.getItem('latekhabar_theme');
+      if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+        document.documentElement.classList.remove('light');
+      } else {
+        document.documentElement.classList.add('light');
+        document.documentElement.classList.remove('dark');
+      }
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function (registrations) {
+          for (let registration of registrations) {
+            registration.unregister();
+          }
+        });
+      }
+    })();
+  </script>
+  <!-- Fonts from Google -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600;1,700&display=swap"
+    rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+    rel="stylesheet" />
+</head>
+
+<body class="bg-background text-on-background font-article-body antialiased min-h-screen">
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+
 </html>
