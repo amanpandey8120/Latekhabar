@@ -317,28 +317,36 @@ export const newsService = {
     }
 
     try {
-      // Columns queried: id, slug, name_en, name_hi, description_en, description_hi,
-      // is_active, display_order — all verified against public.categories schema.
-      // IMPORTANT: If this returns 401/403, the `anon` role is missing a SELECT policy.
-      // Fix in Supabase SQL Editor:
-      //   ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
-      //   CREATE POLICY "categories_public_read" ON public.categories
-      //     FOR SELECT TO anon, authenticated USING (true);
       let query = supabase
         .from('categories')
         .select('id, slug, name_en, name_hi, description_en, description_hi, is_active, display_order');
-      if (!includeInactive) query = query.eq('is_active', true);
-      const { data, error } = await query.order('display_order', { ascending: true });
+
+      if (!includeInactive) {
+        query = query.or('is_active.eq.true,is_active.is.null');
+      }
+
+      const { data, error } = await query.order('name_en', { ascending: true });
 
       if (error) {
-        console.error(
-          '[newsService] getCategories — DB error.',
-          'Code:', error.code,
-          'Message:', error.message,
-          'Details:', error.details,
-          '\nIf code is 401/403: grant SELECT on public.categories to anon role via Supabase RLS policy.'
-        );
-        return [];
+        console.warn('[newsService] getCategories main query notice, attempting fallback select:', error.message);
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('categories')
+          .select('id, slug, name_en, name_hi');
+
+        if (fallbackError) {
+          console.error('[newsService] getCategories fallback error:', fallbackError);
+          return [];
+        }
+
+        if (!fallbackData) return [];
+
+        return (fallbackData as Pick<DbCategory, 'id' | 'slug' | 'name_en' | 'name_hi'>[]).map((c) => ({
+          id: c.id,
+          slug: c.slug,
+          nameEn: c.name_en,
+          nameHi: c.name_hi || c.name_en,
+          isActive: true,
+        }));
       }
 
       if (!data) return [];
@@ -347,10 +355,10 @@ export const newsService = {
         id: c.id,
         slug: c.slug,
         nameEn: c.name_en,
-        nameHi: c.name_hi,
+        nameHi: c.name_hi || c.name_en,
         descriptionEn: c.description_en ?? undefined,
         descriptionHi: c.description_hi ?? undefined,
-        isActive: c.is_active,
+        isActive: c.is_active ?? true,
       }));
     } catch (err) {
       console.error('[newsService] getCategories exception:', err);

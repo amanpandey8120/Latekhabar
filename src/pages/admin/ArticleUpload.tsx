@@ -37,17 +37,36 @@ export const ArticleUpload: React.FC = () => {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [catError, setCatError] = useState('');
+
   useEffect(() => {
+    let isMounted = true;
     async function loadCats() {
       setLoadingCats(true);
-      const cats = await newsService.getCategories();
-      setCategories(cats);
-      if (cats.length > 0) {
-        setCategoryId(cats[0].id);
+      setCatError('');
+      try {
+        const cats = await newsService.getCategories();
+        if (isMounted) {
+          setCategories(cats);
+          if (cats.length > 0) {
+            setCategoryId(cats[0].id);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load categories:', err);
+        if (isMounted) {
+          setCatError('Failed to load categories from database.');
+        }
+      } finally {
+        if (isMounted) {
+          setLoadingCats(false);
+        }
       }
-      setLoadingCats(false);
     }
     loadCats();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -165,7 +184,7 @@ export const ArticleUpload: React.FC = () => {
     }
   };
 
-  const currentLocation = LOCATIONS_DATA.find((l) => l.state === state);
+  const currentLocation = LOCATIONS_DATA.find((l) => l.state === state) || LOCATIONS_DATA[0];
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
@@ -293,14 +312,18 @@ export const ArticleUpload: React.FC = () => {
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
                 disabled={submitting || loadingCats}
-                className="w-full border border-gray-700 bg-gray-900 text-white rounded-lg p-2.5 text-sm outline-none focus:border-primary"
+                className="w-full border border-gray-700 bg-gray-900 text-white rounded-lg p-2.5 text-sm outline-none focus:border-primary disabled:opacity-60 cursor-pointer"
               >
                 {loadingCats ? (
-                  <option>Loading categories...</option>
+                  <option value="" className="bg-gray-900 text-white">Loading categories...</option>
+                ) : catError ? (
+                  <option value="" className="bg-gray-900 text-white">{catError}</option>
+                ) : categories.length === 0 ? (
+                  <option value="" className="bg-gray-900 text-white">No categories found</option>
                 ) : (
                   categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.nameEn} ({cat.nameHi})
+                    <option key={cat.id} value={cat.id} className="bg-gray-900 text-white">
+                      {cat.nameEn} {cat.nameHi && cat.nameHi !== cat.nameEn ? `(${cat.nameHi})` : ''}
                     </option>
                   ))
                 )}
@@ -308,20 +331,22 @@ export const ArticleUpload: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-300 mb-1">State</label>
+              <label className="block text-xs font-bold text-gray-300 mb-1">State / UT</label>
               <select
                 value={state}
                 onChange={(e) => {
-                  setState(e.target.value);
-                  const firstCity = LOCATIONS_DATA.find((l) => l.state === e.target.value)?.cities[0]?.nameEn || '';
+                  const newState = e.target.value;
+                  setState(newState);
+                  const matchedLoc = LOCATIONS_DATA.find((l) => l.state === newState);
+                  const firstCity = matchedLoc?.cities[0]?.nameEn || '';
                   setCity(firstCity);
                 }}
                 disabled={submitting}
-                className="w-full border border-gray-700 bg-gray-900 text-white rounded-lg p-2.5 text-sm outline-none focus:border-primary"
+                className="w-full border border-gray-700 bg-gray-900 text-white rounded-lg p-2.5 text-sm outline-none focus:border-primary disabled:opacity-60 cursor-pointer"
               >
                 {LOCATIONS_DATA.map((loc) => (
-                  <option key={loc.state} value={loc.state}>
-                    {loc.state}
+                  <option key={loc.state} value={loc.state} className="bg-gray-900 text-white">
+                    {loc.state} {loc.stateHi ? `(${loc.stateHi})` : ''}
                   </option>
                 ))}
               </select>
@@ -332,14 +357,18 @@ export const ArticleUpload: React.FC = () => {
               <select
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
-                disabled={submitting}
-                className="w-full border border-gray-700 bg-gray-900 text-white rounded-lg p-2.5 text-sm outline-none focus:border-primary"
+                disabled={submitting || (currentLocation?.cities?.length ?? 0) === 0}
+                className="w-full border border-gray-700 bg-gray-900 text-white rounded-lg p-2.5 text-sm outline-none focus:border-primary disabled:opacity-60 cursor-pointer"
               >
-                {currentLocation?.cities.map((c) => (
-                  <option key={c.nameEn} value={c.nameEn}>
-                    {c.nameEn}
-                  </option>
-                ))}
+                {!currentLocation || currentLocation.cities.length === 0 ? (
+                  <option value="" className="bg-gray-900 text-white">No cities available</option>
+                ) : (
+                  currentLocation.cities.map((c) => (
+                    <option key={c.nameEn} value={c.nameEn} className="bg-gray-900 text-white">
+                      {c.nameEn} {c.nameHi ? `(${c.nameHi})` : ''}
+                    </option>
+                  ))
+                )}
               </select>
             </div>
           </div>
