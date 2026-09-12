@@ -100,10 +100,12 @@
       }
     })();
   </script>
-  <!-- Fonts: locally hosted WOFF2 — @font-face declared in src/index.css -->
-  <!-- Preload the two most critical font files for faster initial render -->
-  <link rel="preload" href="/fonts/inter/inter-400.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
-  <link rel="preload" href="/fonts/playfair-display/playfair-display-normal-700.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
+  <!-- Google Fonts: Inter, Playfair Display, and Noto Sans Devanagari -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600;1,700&display=swap"
+    rel="stylesheet" />
 </head>
 
 <body class="bg-background text-on-background font-article-body antialiased min-h-screen">
