@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
 import { LOCATIONS_DATA } from '../../constants/locations';
+import { formatErrorMessage } from '../../lib/errorHandler';
 import {
   Bookmark,
   Shield,
@@ -118,9 +119,11 @@ export const Profile: React.FC = () => {
         setUploadingAvatar(false);
 
         if (avatarErr) {
-          const errMsg =
-            avatarErr instanceof Error ? avatarErr.message : String(avatarErr);
-          console.error('[Profile] avatar save error:', errMsg);
+          const errMsg = formatErrorMessage(
+            avatarErr,
+            t('failedToSaveAvatar') || 'Failed to save avatar image.'
+          );
+          console.error('[Profile] avatar save error:', errMsg, avatarErr);
           setAvatarError(errMsg);
           // Do not proceed — show the real storage error to the user
           setSaving(false);
@@ -144,9 +147,11 @@ export const Profile: React.FC = () => {
       const { error: updateErr } = await updateProfile(updates);
 
       if (updateErr) {
-        const errMsg =
-          updateErr instanceof Error ? updateErr.message : String(updateErr);
-        console.error('[Profile] updateProfile error:', errMsg);
+        const errMsg = formatErrorMessage(
+          updateErr,
+          'Failed to update profile. Please verify your connection and permissions.'
+        );
+        console.error('[Profile] updateProfile error:', errMsg, updateErr);
         setErrorMsg(errMsg);
         console.groupEnd();
         return;
@@ -158,7 +163,10 @@ export const Profile: React.FC = () => {
       console.info('[Profile] profile save complete ✓');
       setTimeout(() => setSuccessMsg(''), 4000);
     } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : t('networkError');
+      const errMsg = formatErrorMessage(
+        err,
+        t('networkError') || 'An unexpected network error occurred.'
+      );
       console.error('[Profile] unexpected exception:', err);
       setErrorMsg(errMsg);
     } finally {

@@ -51,10 +51,10 @@ export const AdminLogin: React.FC = () => {
         return;
       }
 
-      // Check role from profile — role === 'admin' is the only gate
+      // Check role from profile — staff roles (admin, author, writer) allowed
       const role = profile?.role || 'user';
-      if (role !== 'admin') {
-        setError('Access denied. This portal is restricted to administrators only.');
+      if (role !== 'admin' && role !== 'author' && role !== 'writer') {
+        setError('Access denied. This portal is restricted to authorized staff (Admin, Author, Writer) only.');
         return;
       }
 
