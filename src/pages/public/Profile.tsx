@@ -272,14 +272,14 @@ export const Profile: React.FC = () => {
               )}
             </div>
 
-            {/* Admin shortcut */}
-            {user.role === 'admin' && (
+            {/* Staff shortcut */}
+            {(user.role === 'admin' || user.role === 'author' || user.role === 'writer') && (
               <Link
                 to="/admin"
                 className="flex-shrink-0 px-4 py-2 bg-primary text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow hover:bg-red-700 transition-colors"
               >
                 <Shield size={14} />
-                Admin Portal
+                {user.role === 'admin' ? 'Admin Portal' : user.role === 'author' ? 'Author Portal' : 'Writer Portal'}
               </Link>
             )}
           </div>

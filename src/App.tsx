@@ -78,6 +78,7 @@ export function App() {
                   <Route path="/admin/dashboard" element={<AdminDashboard />} />
                   <Route path="/admin/articles" element={<NewsManagement />} />
                   <Route path="/admin/articles/create" element={<ArticleUpload />} />
+                  <Route path="/admin/articles/new" element={<ArticleUpload />} />
 
                   {/* Admin-Only Routes */}
                   <Route

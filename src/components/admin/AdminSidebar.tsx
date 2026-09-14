@@ -21,7 +21,8 @@ export const AdminSidebar: React.FC = () => {
   const { user, signOut } = useAuth();
   const { role } = useStaffAccess();
 
-  const isFullAdmin = role === 'admin';
+  const currentRole = (role || user?.role || 'user').toLowerCase().trim();
+  const isFullAdmin = currentRole === 'admin';
 
   const links = isFullAdmin
     ? [
@@ -46,12 +47,12 @@ export const AdminSidebar: React.FC = () => {
   };
 
   const getRoleBadgeStyle = () => {
-    if (role === 'admin') return 'bg-red-950 text-red-400 border border-red-800/60';
-    if (role === 'author') return 'bg-purple-950 text-purple-300 border border-purple-800/60';
+    if (currentRole === 'admin') return 'bg-red-950 text-red-400 border border-red-800/60';
+    if (currentRole === 'author') return 'bg-purple-950 text-purple-300 border border-purple-800/60';
     return 'bg-blue-950 text-blue-300 border border-blue-800/60';
   };
 
-  const roleDisplayName = role === 'admin' ? 'Admin' : role === 'author' ? 'Author' : 'Writer';
+  const roleDisplayName = currentRole === 'admin' ? 'Admin' : currentRole === 'author' ? 'Author' : 'Writer';
 
   return (
     <aside className="w-64 bg-[#181a1b] text-gray-200 border-r border-gray-800 flex flex-col justify-between flex-shrink-0 min-h-screen">
@@ -92,7 +93,9 @@ export const AdminSidebar: React.FC = () => {
             const isActive =
               link.path === '/admin/dashboard'
                 ? location.pathname === '/admin/dashboard' || location.pathname === '/admin'
-                : location.pathname === link.path;
+                : link.path === '/admin/articles/create'
+                  ? location.pathname === '/admin/articles/create' || location.pathname === '/admin/articles/new'
+                  : location.pathname === link.path;
             return (
               <Link
                 key={link.path}

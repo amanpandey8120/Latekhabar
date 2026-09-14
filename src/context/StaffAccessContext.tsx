@@ -1,4 +1,5 @@
 import React, { createContext, useContext } from 'react';
+import { useAuth } from './AuthContext';
 
 export interface StaffAccessContextType {
   role: 'admin' | 'author' | 'writer';
@@ -20,12 +21,23 @@ export const StaffAccessProvider: React.FC<{
 
 export const useStaffAccess = (): StaffAccessContextType => {
   const context = useContext(StaffAccessContext);
-  if (!context) {
-    // Fallback to safe defaults if used outside provider
-    return {
-      role: 'admin',
-      userId: '',
-    };
+  const { user } = useAuth();
+
+  if (context) {
+    return context;
   }
-  return context;
+
+  // Fallback to AuthContext user role if available
+  const userRole = user?.role;
+  const validRole: 'admin' | 'author' | 'writer' =
+    userRole === 'author' || userRole === 'writer' || userRole === 'admin'
+      ? userRole
+      : 'admin';
+
+  return {
+    role: validRole,
+    userId: user?.id || '',
+  };
 };
+
+export default StaffAccessContext;
