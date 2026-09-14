@@ -148,7 +148,8 @@ export const ArticleUpload: React.FC = () => {
         setUploadingImage(false);
 
         if (uploadErr || !uploadedUrl) {
-          setError('Failed to upload image. You can provide an image URL directly instead.');
+          // Show the real error from Supabase Storage so the issue is diagnosable
+          setError(uploadErr ?? 'Image upload failed — no URL returned. Check the Supabase Storage bucket and RLS policies.');
           setSubmitting(false);
           return;
         }

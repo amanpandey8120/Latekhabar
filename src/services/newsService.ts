@@ -755,35 +755,69 @@ export const newsService = {
   },
 
   // ── 9. UPLOAD NEWS IMAGE TO STORAGE ──────────────────────────────────────
-  async uploadNewsImage(file: File): Promise<{ url: string | null; error: unknown }> {
+  //
+  // Bucket: "news-images"  (must exist in Supabase Storage and have an INSERT
+  // policy that allows authenticated users with role admin/author/writer)
+  //
+  // Returns { url, error } where error is always a human-readable string so
+  // callers can display it directly in the UI without further parsing.
+  async uploadNewsImage(file: File): Promise<{ url: string | null; error: string | null }> {
     if (!file.type.startsWith('image/')) {
-      return { url: null, error: new Error('Invalid image file type') };
+      return { url: null, error: 'Invalid file type. Please choose a JPEG, PNG, or WebP image.' };
     }
     if (file.size > 10 * 1024 * 1024) {
-      return { url: null, error: new Error('File size exceeds 10MB limit') };
+      return { url: null, error: 'File size exceeds the 10 MB limit.' };
     }
 
     if (!isSupabaseConfigured()) {
-      return { url: null, error: new Error('Supabase Storage is not configured.') };
+      return { url: null, error: 'Supabase is not configured — check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.' };
+    }
+
+    // Confirm the user is authenticated before attempting the upload.
+    // An unauthenticated upload will always fail with a 403 from Storage RLS.
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      return { url: null, error: 'You must be signed in to upload images. Please log in and try again.' };
     }
 
     try {
-      const ext = file.name.split('.').pop() || 'jpg';
-      const filePath = `articles/${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
+      // Sanitise the filename: strip non-alphanumeric chars to avoid path issues.
+      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const safeName = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
+      // Upload to the "articles/" folder inside the "news-images" bucket.
+      const filePath = `articles/${safeName}`;
+
+      console.log('[newsService] uploadNewsImage → bucket: news-images, path:', filePath);
+
       const { error: uploadErr } = await supabase.storage
         .from('news-images')
-        .upload(filePath, file, { upsert: true, contentType: file.type });
+        .upload(filePath, file, { upsert: false, contentType: file.type });
 
       if (uploadErr) {
-        console.error('[newsService] uploadNewsImage error:', uploadErr);
-        return { url: null, error: uploadErr };
+        // Surface the real Supabase Storage error message so it appears in the UI.
+        const msg = uploadErr.message || JSON.stringify(uploadErr);
+        console.error('[newsService] uploadNewsImage Storage error:', msg, uploadErr);
+        return {
+          url: null,
+          error: `Storage upload failed: ${msg}. ` +
+            'Ensure the "news-images" bucket exists and has an INSERT policy for authenticated users ' +
+            '(admin, author, writer roles).',
+        };
       }
 
-      const { data } = supabase.storage.from('news-images').getPublicUrl(filePath);
-      return { url: data.publicUrl, error: null };
+      const { data: urlData } = supabase.storage.from('news-images').getPublicUrl(filePath);
+      const publicUrl = urlData?.publicUrl ?? null;
+
+      if (!publicUrl) {
+        return { url: null, error: 'Upload succeeded but could not retrieve the public URL. Check that the "news-images" bucket is set to Public.' };
+      }
+
+      console.log('[newsService] uploadNewsImage success, public URL:', publicUrl);
+      return { url: publicUrl, error: null };
     } catch (err) {
-      console.error('[newsService] uploadNewsImage exception:', err);
-      return { url: null, error: err };
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[newsService] uploadNewsImage exception:', msg, err);
+      return { url: null, error: `Unexpected upload error: ${msg}` };
     }
   },
 
