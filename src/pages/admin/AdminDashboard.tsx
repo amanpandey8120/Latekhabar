@@ -1,27 +1,31 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import type { Article } from '../../types';
 import { newsService } from '../../services/newsService';
+import { useStaffAccess } from '../../context/StaffAccessContext';
 import { FileText, Eye, Video, Zap, Plus, Trash2, ExternalLink } from 'lucide-react';
 
-/**
- * AdminDashboard — accessible at /admin/dashboard
- * Mirrors the existing Dashboard component (previously at /admin) so the
- * /admin redirect still works while the sidebar correctly points to /admin/dashboard.
- */
 export const AdminDashboard: React.FC = () => {
+  const { role, userId } = useStaffAccess();
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const isAuthorOrWriter = role === 'author' || role === 'writer';
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    const fetchParams = {
+      includeDrafts: true,
+      ...(isAuthorOrWriter ? { authorId: userId } : {}),
+    };
+    const arts = await newsService.getArticles(fetchParams);
+    setArticles(arts);
+    setLoading(false);
+  }, [isAuthorOrWriter, userId]);
+
   useEffect(() => {
-    async function loadData() {
-      setLoading(true);
-      const arts = await newsService.getArticles();
-      setArticles(arts);
-      setLoading(false);
-    }
     loadData();
-  }, []);
+  }, [loadData]);
 
   const totalViews = articles.reduce((sum, a) => sum + (a.viewsCount || 0), 0);
   const totalVideos = articles.filter((a) => a.videoUrl).length;
@@ -29,14 +33,28 @@ export const AdminDashboard: React.FC = () => {
 
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this article?')) {
-      await newsService.deleteArticle(id);
-      setArticles((prev) => prev.filter((a) => a.id !== id));
+      try {
+        const ok = await newsService.deleteArticle(id);
+        if (ok) {
+          setArticles((prev) => prev.filter((a) => a.id !== id));
+        }
+      } catch (err: any) {
+        alert(err?.message || 'Failed to delete article.');
+      }
     }
   };
 
+  const dashboardTitle = isAuthorOrWriter
+    ? `${role === 'author' ? 'Author' : 'Writer'} Dashboard`
+    : 'Admin Dashboard';
+
+  const dashboardSubtitle = isAuthorOrWriter
+    ? 'Overview of your authored articles and reader engagement'
+    : 'Overview of your editorial platform';
+
   const stats = [
-    { label: 'Published Articles', value: articles.length, icon: FileText, color: 'text-blue-400' },
-    { label: 'Total Readers', value: totalViews.toLocaleString(), icon: Eye, color: 'text-emerald-400' },
+    { label: isAuthorOrWriter ? 'Your Articles' : 'Published Articles', value: articles.length, icon: FileText, color: 'text-blue-400' },
+    { label: isAuthorOrWriter ? 'Your Readers' : 'Total Readers', value: totalViews.toLocaleString(), icon: Eye, color: 'text-emerald-400' },
     { label: 'Video Reports', value: totalVideos, icon: Video, color: 'text-purple-400' },
     { label: 'Breaking News', value: totalBreaking, icon: Zap, color: 'text-amber-400' },
   ];
@@ -46,8 +64,8 @@ export const AdminDashboard: React.FC = () => {
       {/* Page header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">Admin Dashboard</h1>
-          <p className="text-sm text-gray-400 mt-0.5">Overview of your editorial platform</p>
+          <h1 className="text-2xl font-bold text-white">{dashboardTitle}</h1>
+          <p className="text-sm text-gray-400 mt-0.5">{dashboardSubtitle}</p>
         </div>
         <Link
           to="/admin/articles/create"
@@ -80,7 +98,9 @@ export const AdminDashboard: React.FC = () => {
       {/* Recent articles table */}
       <div className="bg-[#1c1c1c] rounded-xl border border-gray-800">
         <div className="px-6 py-4 border-b border-gray-800 flex items-center justify-between">
-          <h2 className="text-sm font-bold text-white">Recent Articles</h2>
+          <h2 className="text-sm font-bold text-white">
+            {isAuthorOrWriter ? 'Your Recent Articles' : 'Recent Articles'}
+          </h2>
           <Link
             to="/admin/articles"
             className="text-xs text-primary hover:underline font-semibold"
@@ -92,7 +112,9 @@ export const AdminDashboard: React.FC = () => {
         {loading ? (
           <div className="p-10 text-center text-gray-500 text-sm">Loading articles...</div>
         ) : articles.length === 0 ? (
-          <div className="p-10 text-center text-gray-500 text-sm">No articles published yet.</div>
+          <div className="p-10 text-center text-gray-500 text-sm">
+            {isAuthorOrWriter ? "You haven't published any articles yet." : 'No articles published yet.'}
+          </div>
         ) : (
           <div className="divide-y divide-gray-800">
             {articles.slice(0, 8).map((article) => (
@@ -136,3 +158,5 @@ export const AdminDashboard: React.FC = () => {
     </div>
   );
 };
+
+export default AdminDashboard;

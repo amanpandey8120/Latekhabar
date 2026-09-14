@@ -2,27 +2,29 @@ import React, { useEffect, useState } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { Loader2, ShieldOff } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
+import { StaffAccessProvider } from '../../context/StaffAccessContext';
 
 /**
- * AdminRoute
+ * AdminRoute / StaffRoute
  *
- * Hard gate for all /admin/* routes. Performs a fresh, independent check on
+ * Gate for all /admin/* routes. Performs a fresh, independent check on
  * every mount (login, page-refresh, direct URL navigation, post-logout):
  *
  *   1. getSession()  — verifies a live Supabase session exists.
  *   2. profiles query — fetches profiles.role for the authenticated user ID.
  *
  * Outcomes:
- *   • No session           → <Navigate to="/admin/login" />
- *   • Profile missing      → <Navigate to="/" />           (safe deny)
- *   • role !== 'admin'     → Access Denied UI → <Navigate to="/" />
- *   • role === 'admin'     → <Outlet /> (renders child admin routes)
+ *   • No session                         → <Navigate to="/admin/login" />
+ *   • Profile missing                    → <Navigate to="/" />           (safe deny)
+ *   • role NOT IN ('admin','author','writer') → Access Denied UI
+ *   • role IN ('admin','author','writer')     → Provides StaffAccessContext & renders <Outlet />
  */
 
-type CheckState = 'loading' | 'allowed' | 'denied_not_admin' | 'denied_no_session' | 'denied_no_profile';
+type CheckState = 'loading' | 'allowed' | 'denied_not_staff' | 'denied_no_session' | 'denied_no_profile';
 
-const AdminRoute: React.FC = () => {
+export const AdminRoute: React.FC = () => {
   const [state, setCheckState] = useState<CheckState>('loading');
+  const [staffInfo, setStaffInfo] = useState<{ role: 'admin' | 'author' | 'writer'; userId: string } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -57,10 +59,12 @@ const AdminRoute: React.FC = () => {
         return;
       }
 
-      if (profileRow.role === 'admin') {
+      const role = profileRow.role;
+      if (role === 'admin' || role === 'author' || role === 'writer') {
+        setStaffInfo({ role, userId });
         setCheckState('allowed');
       } else {
-        setCheckState('denied_not_admin');
+        setCheckState('denied_not_staff');
       }
     };
 
@@ -90,15 +94,15 @@ const AdminRoute: React.FC = () => {
     return <Navigate to="/" replace />;
   }
 
-  // ── Authenticated but role !== 'admin' ───────────────────────────────────
-  if (state === 'denied_not_admin') {
+  // ── Authenticated but role is not staff (admin/author/writer) ────────────
+  if (state === 'denied_not_staff' || !staffInfo) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-[#121212] text-center px-6 gap-4">
         <ShieldOff size={48} className="text-red-500" />
         <h1 className="text-2xl font-bold text-white">Access Denied</h1>
         <p className="text-gray-400 text-sm max-w-sm">
-          You do not have administrator privileges. Access requires an administrator account
-          verified in the database.
+          You do not have staff privileges. Access requires an authorized account
+          (Admin, Author, or Writer) verified in the database.
         </p>
         <a
           href="/"
@@ -110,8 +114,13 @@ const AdminRoute: React.FC = () => {
     );
   }
 
-  // ── role === 'admin' → render child routes ────────────────────────────────
-  return <Outlet />;
+  // ── Staff allowed → render child routes with StaffAccessContext ───────────
+  return (
+    <StaffAccessProvider value={staffInfo}>
+      <Outlet />
+    </StaffAccessProvider>
+  );
 };
 
+export const StaffRoute = AdminRoute;
 export default AdminRoute;

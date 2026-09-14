@@ -130,6 +130,7 @@ export const newsService = {
   async getArticles(params?: {
     categorySlug?: string;
     categoryId?: string;
+    authorId?: string;
     state?: string;
     city?: string;
     searchQuery?: string;
@@ -178,6 +179,11 @@ export const newsService = {
       // Published filter
       if (!params?.includeDrafts) {
         query = query.eq('status', 'published');
+      }
+
+      // Author filter
+      if (params?.authorId) {
+        query = query.eq('author_id', params.authorId);
       }
 
       // Category filter

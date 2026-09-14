@@ -3,14 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import { newsService, getArticleAuthors } from '../../services/newsService';
 import type { AuthorProfile } from '../../services/newsService';
 import { useAuth } from '../../context/AuthContext';
+import { useStaffAccess } from '../../context/StaffAccessContext';
 import { LOCATIONS_DATA } from '../../constants/locations';
 import type { Category } from '../../types';
 import { Upload, Image as ImageIcon, Video, AlertCircle, CheckCircle2, Loader2, Camera, UserCircle } from 'lucide-react';
 
-
 export const ArticleUpload: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { role: staffRole } = useStaffAccess();
+
+  const isAuthorOrWriter = staffRole === 'author' || staffRole === 'writer';
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [loadingCats, setLoadingCats] = useState(true);
@@ -41,10 +44,9 @@ export const ArticleUpload: React.FC = () => {
 
   const [catError, setCatError] = useState('');
 
-  // Author/Writer selection
+  // Author/Writer selection (only for Admins)
   const [authors, setAuthors] = useState<AuthorProfile[]>([]);
   const [authorId, setAuthorId] = useState<string>(''); // '' = Editorial Desk
-
 
   useEffect(() => {
     let isMounted = true;
@@ -70,17 +72,20 @@ export const ArticleUpload: React.FC = () => {
         }
       }
     }
+
     async function loadAuthors() {
-      const list = await getArticleAuthors();
-      if (isMounted) setAuthors(list);
+      if (!isAuthorOrWriter) {
+        const list = await getArticleAuthors();
+        if (isMounted) setAuthors(list);
+      }
     }
+
     loadCats();
     loadAuthors();
     return () => {
       isMounted = false;
     };
-  }, []);
-
+  }, [isAuthorOrWriter]);
 
   const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -146,25 +151,35 @@ export const ArticleUpload: React.FC = () => {
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)+/g, '');
 
-      // Resolve the author from selected profile or fall back to logged-in user
+      // Resolve author based on role
       let authorName: string;
       let authorAvatar: string;
       let authorRoleLabel: string;
       let resolvedAuthorId: string | undefined;
 
-      const selectedAuthor = authors.find((a) => a.id === authorId);
-      if (selectedAuthor) {
-        authorName = selectedAuthor.fullName;
-        authorAvatar = selectedAuthor.avatarUrl ||
+      if (isAuthorOrWriter && user) {
+        // Author / Writer role: automatically link to user's profile
+        authorName = user.fullName;
+        authorAvatar = user.avatarUrl ||
           'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=200';
-        authorRoleLabel = selectedAuthor.role === 'author' ? 'Author' : 'Writer';
-        resolvedAuthorId = selectedAuthor.id;
+        authorRoleLabel = staffRole === 'author' ? 'Author' : 'Writer';
+        resolvedAuthorId = user.id;
       } else {
-        authorName = user?.fullName || 'Editorial Desk';
-        authorAvatar = user?.avatarUrl ||
-          'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=200';
-        authorRoleLabel = user?.role === 'admin' ? 'Chief Editor' : 'Staff Journalist';
-        resolvedAuthorId = undefined;
+        // Admin role: check dropdown selection or fall back to Editorial Desk
+        const selectedAuthor = authors.find((a) => a.id === authorId);
+        if (selectedAuthor) {
+          authorName = selectedAuthor.fullName;
+          authorAvatar = selectedAuthor.avatarUrl ||
+            'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=200';
+          authorRoleLabel = selectedAuthor.role === 'author' ? 'Author' : 'Writer';
+          resolvedAuthorId = selectedAuthor.id;
+        } else {
+          authorName = user?.fullName || 'Editorial Desk';
+          authorAvatar = user?.avatarUrl ||
+            'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=200';
+          authorRoleLabel = user?.role === 'admin' ? 'Chief Editor' : 'Staff Journalist';
+          resolvedAuthorId = undefined;
+        }
       }
 
       const created = await newsService.createArticle(
@@ -197,12 +212,11 @@ export const ArticleUpload: React.FC = () => {
           readTimeMinutes: Math.max(1, Math.ceil(contentEn.trim().split(/\s+/).length / 180)),
           tags: ['LateKhabar', selectedCat?.nameEn || 'News'],
         },
-        user?.id
+        resolvedAuthorId || user?.id
       );
 
-
       if (created) {
-        setSuccess('Article published successfully! Redirecting to news management...');
+        setSuccess('Article published successfully! Redirecting to articles list...');
         setTimeout(() => {
           navigate('/admin/articles');
         }, 1500);
@@ -305,7 +319,6 @@ export const ArticleUpload: React.FC = () => {
             />
           </div>
 
-
           <div>
             <label className="block text-xs font-bold text-gray-300 mb-1">
               Content Body (English) <span className="text-red-500">*</span>
@@ -406,32 +419,34 @@ export const ArticleUpload: React.FC = () => {
             </div>
           </div>
 
-          {/* Author / Writer Selector */}
-          <div>
-            <label className="block text-xs font-bold text-gray-300 mb-1 flex items-center gap-1.5">
-              <UserCircle size={14} />
-              Author / Writer
-              <span className="text-gray-500 font-normal normal-case">(optional — leave blank for Editorial Desk)</span>
-            </label>
-            <select
-              value={authorId}
-              onChange={(e) => setAuthorId(e.target.value)}
-              disabled={submitting}
-              className="w-full border border-gray-700 bg-gray-900 text-white rounded-lg p-2.5 text-sm outline-none focus:border-primary disabled:opacity-60 cursor-pointer"
-            >
-              <option value="" className="bg-gray-900 text-white">— Editorial Desk (default) —</option>
-              {authors.map((a) => (
-                <option key={a.id} value={a.id} className="bg-gray-900 text-white">
-                  {a.fullName} ({a.role === 'author' ? 'Author' : 'Writer'})
-                </option>
-              ))}
-            </select>
-            {authors.length === 0 && (
-              <p className="text-[11px] text-gray-600 mt-1">
-                No Authors or Writers found. Assign the <code>author</code> or <code>writer</code> role to users in User Management first.
-              </p>
-            )}
-          </div>
+          {/* Author / Writer Selector (Admin only) */}
+          {!isAuthorOrWriter && (
+            <div>
+              <label className="block text-xs font-bold text-gray-300 mb-1 flex items-center gap-1.5">
+                <UserCircle size={14} />
+                Author / Writer Assignment
+                <span className="text-gray-500 font-normal normal-case">(optional — select specific author or leave blank for Editorial Desk)</span>
+              </label>
+              <select
+                value={authorId}
+                onChange={(e) => setAuthorId(e.target.value)}
+                disabled={submitting}
+                className="w-full border border-gray-700 bg-gray-900 text-white rounded-lg p-2.5 text-sm outline-none focus:border-primary disabled:opacity-60 cursor-pointer"
+              >
+                <option value="" className="bg-gray-900 text-white">— Editorial Desk (default) —</option>
+                {authors.map((a) => (
+                  <option key={a.id} value={a.id} className="bg-gray-900 text-white">
+                    {a.fullName} ({a.role === 'author' ? 'Author' : 'Writer'})
+                  </option>
+                ))}
+              </select>
+              {authors.length === 0 && (
+                <p className="text-[11px] text-gray-600 mt-1">
+                  No Authors or Writers found. Assign the <code>author</code> or <code>writer</code> role to users in User Management first.
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* 4. Media Attachments */}
@@ -580,3 +595,5 @@ export const ArticleUpload: React.FC = () => {
     </div>
   );
 };
+
+export default ArticleUpload;

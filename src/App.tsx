@@ -33,8 +33,9 @@ import { UserManagement } from './pages/admin/UserManagement';
 import { AdminMedia } from './pages/admin/AdminMedia';
 import { AdminAnalytics } from './pages/admin/AdminAnalytics';
 
-// Admin Route Guard
+// Route Guards
 import AdminRoute from './components/admin/AdminRoute';
+import { AdminOnlyRoute } from './components/admin/AdminOnlyRoute';
 
 export function App() {
   return (
@@ -63,22 +64,62 @@ export function App() {
               {/* ── Admin Authentication (public, no guard) ── */}
               <Route path="/admin/login" element={<AdminLogin />} />
 
-              {/* ── Protected Admin Routes ──────────────────────────────────
-                   AdminRoute  → fresh Supabase session + profiles.role check
-                   AdminLayout → sidebar + main layout shell (no auth logic)
+              {/* ── Protected Staff & Admin Routes ───────────────────────────
+                   AdminRoute  → validates active Supabase session & profiles.role IN ('admin','author','writer')
+                   AdminLayout → sidebar + main layout shell
+                   AdminOnlyRoute → restricts specific routes to role === 'admin'
                   ────────────────────────────────────────────────────────── */}
               <Route element={<AdminRoute />}>
                 <Route element={<AdminLayout />}>
-                  {/* /admin → redirect to /admin/dashboard */}
+                  {/* Redirect /admin to /admin/dashboard */}
                   <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+                  
+                  {/* Shared Staff Routes (Admin, Author, Writer) */}
                   <Route path="/admin/dashboard" element={<AdminDashboard />} />
-                  <Route path="/admin/news" element={<AdminNewsFeed />} />
                   <Route path="/admin/articles" element={<NewsManagement />} />
                   <Route path="/admin/articles/create" element={<ArticleUpload />} />
-                  <Route path="/admin/categories" element={<CategoryManagement />} />
-                  <Route path="/admin/media" element={<AdminMedia />} />
-                  <Route path="/admin/users" element={<UserManagement />} />
-                  <Route path="/admin/analytics" element={<AdminAnalytics />} />
+
+                  {/* Admin-Only Routes */}
+                  <Route
+                    path="/admin/news"
+                    element={
+                      <AdminOnlyRoute>
+                        <AdminNewsFeed />
+                      </AdminOnlyRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/categories"
+                    element={
+                      <AdminOnlyRoute>
+                        <CategoryManagement />
+                      </AdminOnlyRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/media"
+                    element={
+                      <AdminOnlyRoute>
+                        <AdminMedia />
+                      </AdminOnlyRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/users"
+                    element={
+                      <AdminOnlyRoute>
+                        <UserManagement />
+                      </AdminOnlyRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/analytics"
+                    element={
+                      <AdminOnlyRoute>
+                        <AdminAnalytics />
+                      </AdminOnlyRoute>
+                    }
+                  />
                 </Route>
               </Route>
             </Routes>

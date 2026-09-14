@@ -1,10 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import type { Article, Category } from '../../types';
 import { newsService } from '../../services/newsService';
+import { useStaffAccess } from '../../context/StaffAccessContext';
 import { Search, Plus, Trash2, ExternalLink, Filter, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 export const NewsManagement: React.FC = () => {
+  const { role, userId } = useStaffAccess();
   const [articles, setArticles] = useState<Article[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -12,30 +14,41 @@ export const NewsManagement: React.FC = () => {
   const [selectedCat, setSelectedCat] = useState('all');
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  const loadData = async () => {
+  const isAuthorOrWriter = role === 'author' || role === 'writer';
+
+  const loadData = useCallback(async () => {
     setLoading(true);
+    const fetchParams = {
+      includeDrafts: true,
+      ...(isAuthorOrWriter ? { authorId: userId } : {}),
+    };
+
     const [arts, cats] = await Promise.all([
-      newsService.getArticles({ includeDrafts: true }),
+      newsService.getArticles(fetchParams),
       newsService.getCategories(),
     ]);
     setArticles(arts);
     setCategories(cats);
     setLoading(false);
-  };
+  }, [isAuthorOrWriter, userId]);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   const handleDelete = async (id: string, title: string) => {
     if (window.confirm(`Are you sure you want to permanently delete "${title}"?`)) {
-      const ok = await newsService.deleteArticle(id);
-      if (ok) {
-        setArticles((prev) => prev.filter((a) => a.id !== id));
-        setFeedback({ type: 'success', message: `Article "${title}" deleted.` });
-        setTimeout(() => setFeedback(null), 3000);
-      } else {
-        setFeedback({ type: 'error', message: 'Failed to delete article.' });
+      try {
+        const ok = await newsService.deleteArticle(id);
+        if (ok) {
+          setArticles((prev) => prev.filter((a) => a.id !== id));
+          setFeedback({ type: 'success', message: `Article "${title}" deleted.` });
+          setTimeout(() => setFeedback(null), 3000);
+        } else {
+          setFeedback({ type: 'error', message: 'Failed to delete article.' });
+        }
+      } catch (err: any) {
+        setFeedback({ type: 'error', message: err?.message || 'Failed to delete article.' });
       }
     }
   };
@@ -56,9 +69,13 @@ export const NewsManagement: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-800 pb-4">
         <div>
-          <h1 className="text-3xl font-bold font-headline-md text-white">News Management</h1>
+          <h1 className="text-3xl font-bold font-headline-md text-white">
+            {isAuthorOrWriter ? 'My Articles' : 'News Management'}
+          </h1>
           <p className="text-xs text-gray-400 mt-1">
-            View, filter, and manage all published stories stored in Supabase `news` table.
+            {isAuthorOrWriter
+              ? 'View, filter, and manage your authored stories stored in Supabase.'
+              : 'View, filter, and manage all published stories stored in Supabase `news` table.'}
           </p>
         </div>
 
@@ -107,7 +124,7 @@ export const NewsManagement: React.FC = () => {
           <select
             value={selectedCat}
             onChange={(e) => setSelectedCat(e.target.value)}
-            className="border border-gray-700 bg-gray-900 text-white rounded-lg p-2 text-xs outline-none focus:border-primary"
+            className="border border-gray-700 bg-gray-900 text-white rounded-lg p-2 text-xs outline-none focus:border-primary cursor-pointer"
           >
             <option value="all">All Categories</option>
             {categories.map((cat) => (
@@ -144,7 +161,9 @@ export const NewsManagement: React.FC = () => {
               ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="p-12 text-center text-gray-500">
-                    No articles found matching your criteria.
+                    {isAuthorOrWriter
+                      ? "You haven't authored any articles yet."
+                      : 'No articles found matching your criteria.'}
                   </td>
                 </tr>
               ) : (
@@ -218,3 +237,5 @@ export const NewsManagement: React.FC = () => {
     </div>
   );
 };
+
+export default NewsManagement;
