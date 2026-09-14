@@ -59,8 +59,8 @@ export interface DbNews {
   is_featured: boolean;
   // is_published does NOT exist — use status = 'published'
   // is_breaking does NOT exist in DB
-  // Image: actual DB columns in Supabase public.news (image_url is the primary column, featured_image for compatibility)
-  image_url?: string | null;
+  // The only image column on public.news is featured_image.
+  // image_url does NOT exist on this table (it exists on news_images for gallery photos).
   featured_image?: string | null;
   image_caption?: string | null;
   video_url?: string | null;

@@ -62,7 +62,8 @@ export const mapDbRowToArticle = (
     )}`;
   }
 
-  const rawImage = ((r.image_url as string) || (r.featured_image as string) || '').trim();
+  // featured_image is the only image column on public.news — image_url does not exist on this table.
+  const rawImage = ((r.featured_image as string) || '').trim();
 
   return {
     id: (r.id as string) || '',
@@ -206,7 +207,7 @@ export const newsService = {
         'id, slug, title_en, title_hi, summary_en, summary_hi, ' +
         'content_en, content_hi, category_id, author_id, ' +
         'published_at, created_at, updated_at, status, ' +
-        'is_trending, is_featured, state, city, image_url, featured_image'
+        'is_trending, is_featured, state, city, featured_image'
       );
 
       // Published filter
@@ -335,7 +336,7 @@ export const newsService = {
           'id, slug, title_en, title_hi, summary_en, summary_hi, ' +
           'content_en, content_hi, category_id, author_id, ' +
           'published_at, created_at, updated_at, status, ' +
-          'is_trending, is_featured, state, city, image_url, featured_image'
+          'is_trending, is_featured, state, city, featured_image'
         )
         .eq('slug', slug)
         .single();
@@ -653,8 +654,7 @@ export const newsService = {
       status: newArticleData.status || 'published',
       is_trending: newArticleData.isTrending ?? false,
       is_featured: newArticleData.isFeatured ?? false,
-      // Write to both columns so existing queries that read either one always get the URL
-      image_url: newArticleData.imageUrl || null,
+      // featured_image is the only image column on public.news
       featured_image: newArticleData.imageUrl || null,
       state: newArticleData.state || null,
       city: newArticleData.city || null,
@@ -723,7 +723,7 @@ export const newsService = {
     if (updates.contentHi !== undefined) dbUpdates.content_hi  = updates.contentHi;
     if (updates.categoryId !== undefined) dbUpdates.category_id = updates.categoryId || null;
     if (updates.imageUrl !== undefined) {
-      dbUpdates.image_url = updates.imageUrl || null;
+      // featured_image is the only image column on public.news
       dbUpdates.featured_image = updates.imageUrl || null;
     }
     if (updates.isTrending !== undefined) dbUpdates.is_trending = updates.isTrending;
