@@ -1,6 +1,6 @@
 export type Language = 'en' | 'hi';
 export type ThemeMode = 'light' | 'dark';
-export type UserRole = 'user' | 'admin';
+export type UserRole = 'user' | 'admin' | 'author' | 'writer';
 
 export interface Category {
   id: string;
@@ -40,6 +40,7 @@ export interface Article {
   categoryId: string;
   categoryNameEn: string;
   categoryNameHi: string;
+  authorId?: string;
   author: {
     name: string;
     avatar: string;

@@ -46,6 +46,10 @@ export const mapDbRowToArticle = (
     categoryNameEn,
     categoryNameHi,
 
+    // authorId — UUID of the profile row for the author/writer; may be null when
+    // written by the editorial desk.
+    authorId: (r.author_id as string | undefined) || undefined,
+
     author: {
       name: (r.author_name as string) || 'Editorial Desk',
       avatar:
@@ -82,6 +86,44 @@ export const mapDbRowToArticle = (
     tags: (r.tags ?? []) as string[],
   };
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AuthorProfile — lightweight profile used for author dropdowns
+// ─────────────────────────────────────────────────────────────────────────────
+export interface AuthorProfile {
+  id: string;
+  fullName: string;
+  avatarUrl?: string;
+  role: 'author' | 'writer';
+}
+
+/**
+ * Fetch all profiles whose role is 'author' or 'writer'.
+ * Used to populate the Author/Writer selector in ArticleUpload.
+ */
+export async function getArticleAuthors(): Promise<AuthorProfile[]> {
+  if (!isSupabaseConfigured()) return [];
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, full_name, avatar_url, role')
+    .in('role', ['author', 'writer'])
+    .order('full_name', { ascending: true });
+
+  if (error) {
+    console.error('[newsService] getArticleAuthors error:', error);
+    return [];
+  }
+
+  return (data ?? []).map((p: Record<string, unknown>) => ({
+    id: p.id as string,
+    fullName: (p.full_name as string) || 'Unnamed',
+    avatarUrl: p.avatar_url as string | undefined,
+    role: p.role as 'author' | 'writer',
+  }));
+}
+
+
 
 export const newsService = {
   // ── 1. GET ARTICLES (Public / Filtered) ─────────────────────────────────
@@ -286,7 +328,27 @@ export const newsService = {
         // news_videos table optional
       }
 
-      const art = mapDbRowToArticle(newsRow as unknown as DbNews, undefined, articleImages, articleVideos);
+      // Resolve author details from public.profiles if author_id is set
+      const enrichedRow: Record<string, unknown> = { ...(newsRow as unknown as Record<string, unknown>) };
+      if (enrichedRow.author_id) {
+        try {
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('full_name, avatar_url, role')
+            .eq('id', enrichedRow.author_id as string)
+            .single();
+          if (profileData) {
+            const pd = profileData as { full_name?: string; avatar_url?: string; role?: string };
+            enrichedRow.author_name = pd.full_name || 'Editorial Desk';
+            enrichedRow.author_avatar = pd.avatar_url || null;
+            enrichedRow.author_role = pd.role === 'author' ? 'Author' : pd.role === 'writer' ? 'Writer' : 'Reporter';
+          }
+        } catch {
+          // Non-critical — fall back to defaults from mapDbRowToArticle
+        }
+      }
+
+      const art = mapDbRowToArticle(enrichedRow as unknown as DbNews, undefined, articleImages, articleVideos);
       art.categoryNameEn = categoryNameEn;
       art.categoryNameHi = categoryNameHi;
       return art;
@@ -484,7 +546,7 @@ export const newsService = {
       content_en: newArticleData.contentEn || null,
       content_hi: newArticleData.contentHi || null,
       category_id: newArticleData.categoryId || null,
-      author_id: authorId || null,
+      author_id: newArticleData.authorId ?? authorId ?? null,
       published_at: newArticleData.publishedAt || new Date().toISOString(),
       status: newArticleData.status || 'published',
       is_trending: newArticleData.isTrending ?? false,

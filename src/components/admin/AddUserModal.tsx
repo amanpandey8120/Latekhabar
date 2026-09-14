@@ -258,11 +258,13 @@ export const AddUserModal: React.FC<AddUserModalProps> = ({ onClose, onSuccess }
               <div className="relative">
                 <select
                   value={form.role}
-                  onChange={(e) => setField('role', e.target.value as 'user' | 'admin')}
+                  onChange={(e) => setField('role', e.target.value as 'user' | 'admin' | 'author' | 'writer')}
                   disabled={submitting}
                   className={selectCls}
                 >
                   <option value="user">Reader (user)</option>
+                  <option value="author">Author</option>
+                  <option value="writer">Writer</option>
                   <option value="admin">Administrator (admin)</option>
                 </select>
                 <ShieldCheck size={14} className="absolute left-3.5 top-3 text-gray-500 pointer-events-none" />

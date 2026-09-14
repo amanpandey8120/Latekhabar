@@ -17,7 +17,7 @@ export interface CreateUserPayload {
   fullName: string;
   email: string;
   password: string;
-  role: 'user' | 'admin';
+  role: 'user' | 'admin' | 'author' | 'writer';
   state?: string;
   city?: string;
 }
@@ -160,4 +160,59 @@ export async function adminDeleteUser(
   }
 
   return json;
+}
+
+// ── Update user role directly on public.profiles ──────────────────────────
+// This is safe because:
+//   • protect_profile_role() trigger enforces that only admins can change role
+//   • RLS policies gate the UPDATE to admins only
+//   • No service-role key is ever used
+
+export interface UpdateRoleResult {
+  success?: boolean;
+  error?: string;
+}
+
+export async function adminUpdateUserRole(
+  targetUserId: string,
+  newRole: 'user' | 'admin' | 'author' | 'writer'
+): Promise<UpdateRoleResult> {
+  if (!isSupabaseConfigured()) {
+    return { error: 'Supabase is not configured.' };
+  }
+
+  // 1. Verify caller is authenticated
+  const { data: sessionData, error: sessionErr } = await supabase.auth.getSession();
+  if (sessionErr || !sessionData.session) {
+    return { error: 'No active session. Please log in again.' };
+  }
+
+  // 2. Verify caller's own role is 'admin' in public.profiles
+  const callerId = sessionData.session.user.id;
+  const { data: callerProfile, error: profileErr } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', callerId)
+    .single();
+
+  if (profileErr || !callerProfile) {
+    return { error: `Failed to verify admin privileges: ${profileErr?.message ?? 'Profile not found'}` };
+  }
+
+  if ((callerProfile as { role: string }).role !== 'admin') {
+    return { error: 'Access denied: only admins can change user roles.' };
+  }
+
+  // 3. Update the role on the target profile
+  const { error: updateErr } = await supabase
+    .from('profiles')
+    .update({ role: newRole })
+    .eq('id', targetUserId);
+
+  if (updateErr) {
+    console.error('[adminService] updateUserRole error:', updateErr);
+    return { error: updateErr.message };
+  }
+
+  return { success: true };
 }

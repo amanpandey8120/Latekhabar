@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import type { UserProfile, UserRole } from '../types';
+import type { UserProfile } from '../types';
 import {
   loadBookmarkIds,
   addBookmark,
@@ -52,7 +52,14 @@ function buildProfileFromRow(
       `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(
         (row.full_name as string) || sessionUser.email || 'user'
       )}`,
-    role: (row.role as UserRole) === 'admin' ? 'admin' : 'user',
+    role:
+      row.role === 'admin'
+        ? 'admin'
+        : row.role === 'author'
+          ? 'author'
+          : row.role === 'writer'
+            ? 'writer'
+            : 'user',
     language: (row.language as 'en' | 'hi') === 'hi' ? 'hi' : 'en',
     state: (row.state as string | null) ?? undefined,
     city: (row.city as string | null) ?? undefined,

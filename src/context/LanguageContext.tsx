@@ -103,6 +103,11 @@ export const TRANSLATIONS: Dictionary = {
   share: { en: 'Share', hi: 'शेयर करें' },
   save: { en: 'Save', hi: 'सहेजें' },
   saved: { en: 'Saved', hi: 'सहेजा गया' },
+  writtenBy: { en: 'Written by', hi: 'लेखक' },
+  authorRole: { en: 'Author', hi: 'लेखक' },
+  writerRole: { en: 'Writer', hi: 'रचनाकार' },
+  selectAuthor: { en: 'Select Author / Writer', hi: 'लेखक / रचनाकार चुनें' },
+  authorOrWriter: { en: 'Author / Writer', hi: 'लेखक / रचनाकार' },
 
   // Admin Dashboard
   adminDashboard: { en: 'Admin Dashboard', hi: 'एडमिन डैशबोर्ड' },

@@ -11,7 +11,7 @@ export interface DbProfile {
   email: string;
   full_name: string | null;
   avatar_url: string | null;
-  role: 'user' | 'admin';
+  role: 'user' | 'admin' | 'author' | 'writer';
   language: 'en' | 'hi' | null;
   state: string | null;
   city: string | null;
