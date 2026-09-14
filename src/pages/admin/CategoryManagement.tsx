@@ -37,36 +37,75 @@ export const CategoryManagement: React.FC = () => {
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)+/g, '');
 
-    const created = await newsService.createCategory({
-      slug,
-      nameEn: newEn.trim(),
-      nameHi: newHi.trim() || newEn.trim(),
-      descriptionEn: `${newEn.trim()} news coverage and analysis`,
-      descriptionHi: `${newHi.trim() || newEn.trim()} समाचार एवं विश्लेषण`,
-      isActive: true,
-    });
-
-    if (created) {
-      setSuccess(`Category "${created.nameEn}" created successfully!`);
-      setNewEn('');
-      setNewHi('');
-      await loadCategories();
-      setTimeout(() => setSuccess(''), 3000);
-    } else {
-      setError('Failed to create category. Please check your admin privileges.');
+    if (!slug) {
+      setError('Please provide a valid English category name to generate a slug.');
+      setSubmitting(false);
+      return;
     }
-    setSubmitting(false);
+
+    try {
+      const created = await newsService.createCategory({
+        slug,
+        nameEn: newEn.trim(),
+        nameHi: newHi.trim() || newEn.trim(),
+        descriptionEn: `${newEn.trim()} news coverage and analysis`,
+        descriptionHi: `${newHi.trim() || newEn.trim()} समाचार एवं विश्लेषण`,
+        isActive: true,
+      });
+
+      if (created) {
+        setSuccess(`Category "${created.nameEn}" created successfully!`);
+        setNewEn('');
+        setNewHi('');
+        await loadCategories();
+        setTimeout(() => setSuccess(''), 3000);
+      }
+    } catch (err: unknown) {
+      console.error('[CategoryManagement] handleAdd failed:', err);
+      const postgrestErr = err as {
+        message?: string;
+        details?: string;
+        hint?: string;
+        code?: string;
+      };
+
+      let msg = postgrestErr.message || (err instanceof Error ? err.message : 'Failed to create category.');
+
+      if (postgrestErr.code === '23505') {
+        msg = `A category with the slug "${slug}" already exists. Please choose a different name.`;
+      } else if (postgrestErr.code === '42501') {
+        msg = `Permission denied (RLS): Your account does not have permission to insert into public.categories. (${postgrestErr.message})`;
+      }
+
+      if (postgrestErr.details) {
+        msg += ` — ${postgrestErr.details}`;
+      }
+      if (postgrestErr.hint) {
+        msg += ` (${postgrestErr.hint})`;
+      }
+
+      setError(msg);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleDelete = async (id: string, name: string) => {
     if (window.confirm(`Are you sure you want to delete category "${name}"?`)) {
-      const ok = await newsService.deleteCategory(id);
-      if (ok) {
-        setCategories((prev) => prev.filter((c) => c.id !== id));
-        setSuccess(`Category "${name}" deleted.`);
-        setTimeout(() => setSuccess(''), 3000);
-      } else {
-        setError('Failed to delete category.');
+      setError('');
+      setSuccess('');
+      try {
+        const ok = await newsService.deleteCategory(id);
+        if (ok) {
+          setCategories((prev) => prev.filter((c) => c.id !== id));
+          setSuccess(`Category "${name}" deleted.`);
+          setTimeout(() => setSuccess(''), 3000);
+        }
+      } catch (err: unknown) {
+        console.error('[CategoryManagement] handleDelete failed:', err);
+        const postgrestErr = err as { message?: string; details?: string; hint?: string };
+        const msg = postgrestErr.message || (err instanceof Error ? err.message : 'Failed to delete category.');
+        setError(msg);
       }
     }
   };

@@ -366,11 +366,33 @@ export const newsService = {
     }
   },
 
-  async createCategory(cat: Omit<Category, 'id'>): Promise<Category | null> {
+  async createCategory(cat: Omit<Category, 'id'>): Promise<Category> {
     if (!isSupabaseConfigured()) {
       throw new Error('Supabase is not configured.');
     }
 
+    // 1. Verify currently authenticated Supabase user
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    if (userError || !userData?.user) {
+      throw new Error(`Authentication required: ${userError?.message || 'No active user session'}`);
+    }
+
+    // 2. Verify user's public.profiles.role is "admin"
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', userData.user.id)
+      .single();
+
+    if (profileError) {
+      throw new Error(`Failed to verify admin privileges: ${profileError.message}`);
+    }
+
+    if (profile?.role !== 'admin') {
+      throw new Error('Access denied: Administrator role required in public.profiles to create categories.');
+    }
+
+    // 3. Perform category insert with authenticated client
     const { data, error } = await supabase
       .from('categories')
       .insert([{
@@ -384,9 +406,13 @@ export const newsService = {
       .select()
       .single();
 
-    if (error || !data) {
+    if (error) {
       console.error('[newsService] createCategory error:', error);
-      return null;
+      throw error;
+    }
+
+    if (!data) {
+      throw new Error('Category created but no record returned from database.');
     }
 
     const created: Category = {
@@ -406,10 +432,31 @@ export const newsService = {
       throw new Error('Supabase is not configured.');
     }
 
+    // 1. Verify currently authenticated Supabase user
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    if (userError || !userData?.user) {
+      throw new Error(`Authentication required: ${userError?.message || 'No active user session'}`);
+    }
+
+    // 2. Verify user's public.profiles.role is "admin"
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', userData.user.id)
+      .single();
+
+    if (profileError) {
+      throw new Error(`Failed to verify admin privileges: ${profileError.message}`);
+    }
+
+    if (profile?.role !== 'admin') {
+      throw new Error('Access denied: Administrator role required in public.profiles to delete categories.');
+    }
+
     const { error } = await supabase.from('categories').delete().eq('id', id);
     if (error) {
       console.error('[newsService] deleteCategory error:', error);
-      return false;
+      throw error;
     }
     return true;
   },
