@@ -76,6 +76,8 @@ export const TRANSLATIONS: Dictionary = {
   updatingPassword: { en: 'Updating password...', hi: 'पासवर्ड अपडेट हो रहा है...' },
   passwordUpdatedSuccess: { en: 'Password updated successfully! Redirecting to login...', hi: 'पासवर्ड सफलतापूर्वक अपडेट हो गया! लॉगिन पर पुनः प्रेषित किया जा रहा है...' },
   invalidOrExpiredResetLink: { en: 'Invalid or expired password reset link. Please request a new link.', hi: 'अमान्य या समाप्त हो चुका पासवर्ड रीसेट लिंक। कृपया नया लिंक अनुरोध करें।' },
+  requestNewLink: { en: 'Request New Link', hi: 'नया रीसेट लिंक अनुरोध करें' },
+  verifyingResetLink: { en: 'Verifying reset link...', hi: 'रीसेट लिंक सत्यापित किया जा रहा है...' },
   // Profile Management
   editProfile: { en: 'Edit Profile Information', hi: 'प्रोफाइल जानकारी संपादित करें' },
   profileUpdatedSuccess: { en: 'Profile updated successfully!', hi: 'प्रोफाइल सफलतापूर्वक अपडेट हो गई!' },

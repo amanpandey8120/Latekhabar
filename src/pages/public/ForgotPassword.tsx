@@ -13,10 +13,11 @@ export const ForgotPassword: React.FC = () => {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  const handleSupabaseError = (err: any): string => {
+  const handleSupabaseError = (err: unknown): string => {
     if (!err) return t('networkError');
-    const msg = (err.message || err.toString() || '').toLowerCase();
-    const code = (err.code || '').toLowerCase();
+    const asErr = err as { message?: string; code?: string; toString?: () => string };
+    const msg = (asErr.message || (typeof err === 'object' ? '' : String(err)) || '').toLowerCase();
+    const code = (asErr.code || '').toLowerCase();
 
     if (msg.includes('user not found') || code === 'user_not_found') {
       return t('userNotFound');
@@ -30,7 +31,7 @@ export const ForgotPassword: React.FC = () => {
       return t('networkError');
     }
 
-    return err.message || t('networkError');
+    return asErr.message || t('networkError');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -57,7 +58,7 @@ export const ForgotPassword: React.FC = () => {
       } else {
         setSuccessMessage(t('resetPasswordSent'));
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(handleSupabaseError(err));
     } finally {
       setLoading(false);
