@@ -16,7 +16,8 @@ export const mapDbRowToArticle = (
   row: DbNews | Record<string, unknown>,
   categoryMap?: Map<string, { nameEn: string; nameHi: string; slug: string }>,
   images?: ArticleImage[],
-  videos?: ArticleVideo[]
+  videos?: ArticleVideo[],
+  authorMap?: Map<string, { name: string; avatar?: string; role: string }>
 ): Article => {
   const r = row as Record<string, unknown>;
 
@@ -27,6 +28,35 @@ export const mapDbRowToArticle = (
     const cat = categoryMap.get(r.category_id as string)!;
     categoryNameEn = cat.nameEn;
     categoryNameHi = cat.nameHi;
+  }
+
+  // Author resolution
+  const rawAuthorId = (r.author_id as string | undefined) || undefined;
+  let resolvedAuthorName = (r.author_name as string) || '';
+  let resolvedAuthorAvatar = (r.author_avatar as string) || '';
+  let resolvedAuthorRole = (r.author_role as string) || '';
+
+  if (rawAuthorId && authorMap && authorMap.has(rawAuthorId)) {
+    const a = authorMap.get(rawAuthorId)!;
+    if (!resolvedAuthorName) resolvedAuthorName = a.name;
+    if (!resolvedAuthorAvatar && a.avatar) resolvedAuthorAvatar = a.avatar;
+    if (!resolvedAuthorRole) resolvedAuthorRole = a.role;
+  }
+
+  // If author_id exists but profile was not found / has no name, NEVER fallback to Editorial Desk!
+  if (rawAuthorId) {
+    if (!resolvedAuthorName) resolvedAuthorName = 'Author';
+    if (!resolvedAuthorRole) resolvedAuthorRole = 'Staff Writer';
+  } else {
+    // Only when author_id is explicitly NULL / undefined:
+    if (!resolvedAuthorName) resolvedAuthorName = 'Editorial Desk';
+    if (!resolvedAuthorRole) resolvedAuthorRole = 'Chief Editor';
+  }
+
+  if (!resolvedAuthorAvatar) {
+    resolvedAuthorAvatar = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(
+      resolvedAuthorName
+    )}`;
   }
 
   return {
@@ -46,16 +76,13 @@ export const mapDbRowToArticle = (
     categoryNameEn,
     categoryNameHi,
 
-    // authorId — UUID of the profile row for the author/writer; may be null when
-    // written by the editorial desk.
-    authorId: (r.author_id as string | undefined) || undefined,
+    // authorId — UUID of the profile row for the author/writer; null when Editorial Desk
+    authorId: rawAuthorId,
 
     author: {
-      name: (r.author_name as string) || 'Editorial Desk',
-      avatar:
-        (r.author_avatar as string) ||
-        'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=200',
-      role: (r.author_role as string) || 'Reporter',
+      name: resolvedAuthorName,
+      avatar: resolvedAuthorAvatar,
+      role: resolvedAuthorRole,
     },
 
     publishedAt: (r.published_at ?? r.created_at ?? new Date().toISOString()) as string,
@@ -236,7 +263,52 @@ export const newsService = {
         return [];
       }
 
-      return (data as unknown as DbNews[]).map((row) => mapDbRowToArticle(row, catMap));
+      // Batch resolve author profiles for all author_ids in this result set
+      const authorIds = Array.from(
+        new Set(
+          (data as unknown as Record<string, unknown>[])
+            .map((r) => r.author_id as string)
+            .filter(Boolean)
+        )
+      );
+
+      const authorMap = new Map<string, { name: string; avatar?: string; role: string }>();
+      if (authorIds.length > 0) {
+        try {
+          const { data: profileRows, error: profileErr } = await supabase
+            .from('profiles')
+            .select('id, full_name, avatar_url, role')
+            .in('id', authorIds);
+
+          if (!profileErr && profileRows) {
+            profileRows.forEach((p: Record<string, unknown>) => {
+              const pRole = (p.role as string)?.toLowerCase();
+              const roleLabel =
+                pRole === 'author'
+                  ? 'Author'
+                  : pRole === 'writer'
+                  ? 'Writer'
+                  : pRole === 'admin'
+                  ? 'Chief Editor'
+                  : 'Staff Writer';
+
+              authorMap.set(p.id as string, {
+                name: (p.full_name as string) || 'Author',
+                avatar: (p.avatar_url as string) || undefined,
+                role: roleLabel,
+              });
+            });
+          } else if (profileErr) {
+            console.warn('[newsService] Batch author profiles query notice:', profileErr.message);
+          }
+        } catch (err) {
+          console.warn('[newsService] Author profile batch fetch warning:', err);
+        }
+      }
+
+      return (data as unknown as DbNews[]).map((row) =>
+        mapDbRowToArticle(row, catMap, undefined, undefined, authorMap)
+      );
     } catch (err) {
       console.error('[newsService] getArticles exception:', err);
       return [];
@@ -338,19 +410,32 @@ export const newsService = {
       const enrichedRow: Record<string, unknown> = { ...(newsRow as unknown as Record<string, unknown>) };
       if (enrichedRow.author_id) {
         try {
-          const { data: profileData } = await supabase
+          const { data: profileData, error: profileErr } = await supabase
             .from('profiles')
-            .select('full_name, avatar_url, role')
+            .select('id, full_name, avatar_url, role')
             .eq('id', enrichedRow.author_id as string)
             .single();
-          if (profileData) {
+
+          if (!profileErr && profileData) {
             const pd = profileData as { full_name?: string; avatar_url?: string; role?: string };
-            enrichedRow.author_name = pd.full_name || 'Editorial Desk';
+            const pRole = (pd.role as string)?.toLowerCase();
+            const roleLabel =
+              pRole === 'author'
+                ? 'Author'
+                : pRole === 'writer'
+                ? 'Writer'
+                : pRole === 'admin'
+                ? 'Chief Editor'
+                : 'Staff Writer';
+
+            enrichedRow.author_name = pd.full_name || 'Author';
             enrichedRow.author_avatar = pd.avatar_url || null;
-            enrichedRow.author_role = pd.role === 'author' ? 'Author' : pd.role === 'writer' ? 'Writer' : 'Reporter';
+            enrichedRow.author_role = roleLabel;
+          } else if (profileErr) {
+            console.warn('[newsService] getArticleBySlug author profile fetch notice:', profileErr.message);
           }
-        } catch {
-          // Non-critical — fall back to defaults from mapDbRowToArticle
+        } catch (err) {
+          console.warn('[newsService] getArticleBySlug author profile lookup error:', err);
         }
       }
 
@@ -543,6 +628,11 @@ export const newsService = {
       throw new Error('Supabase is not configured.');
     }
 
+    const resolvedAuthorId =
+      newArticleData.authorId !== undefined
+        ? newArticleData.authorId
+        : (authorId || null);
+
     const dbPayload: Record<string, unknown> = {
       slug: newArticleData.slug,
       title_en: newArticleData.titleEn,
@@ -552,7 +642,7 @@ export const newsService = {
       content_en: newArticleData.contentEn || null,
       content_hi: newArticleData.contentHi || null,
       category_id: newArticleData.categoryId || null,
-      author_id: newArticleData.authorId ?? authorId ?? null,
+      author_id: resolvedAuthorId || null,
       published_at: newArticleData.publishedAt || new Date().toISOString(),
       status: newArticleData.status || 'published',
       is_trending: newArticleData.isTrending ?? false,

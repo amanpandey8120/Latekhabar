@@ -12,8 +12,8 @@ export const ArticleUpload: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { role: staffRole } = useStaffAccess();
-
-  const isAuthorOrWriter = staffRole === 'author' || staffRole === 'writer';
+  const currentRole = (staffRole || user?.role || 'user').toLowerCase().trim();
+  const isAuthorOrWriter = currentRole === 'author' || currentRole === 'writer';
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [loadingCats, setLoadingCats] = useState(true);
@@ -157,27 +157,32 @@ export const ArticleUpload: React.FC = () => {
       let authorRoleLabel: string;
       let resolvedAuthorId: string | undefined;
 
-      if (isAuthorOrWriter && user) {
+      const effectiveRole = (staffRole || user?.role || 'user').toLowerCase().trim();
+      const isAuthorOrWriterUser = effectiveRole === 'author' || effectiveRole === 'writer';
+
+      if (isAuthorOrWriterUser && user) {
         // Author / Writer role: automatically link to user's profile
         authorName = user.fullName;
-        authorAvatar = user.avatarUrl ||
-          'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=200';
-        authorRoleLabel = staffRole === 'author' ? 'Author' : 'Writer';
+        authorAvatar =
+          user.avatarUrl ||
+          `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.fullName)}`;
+        authorRoleLabel = effectiveRole === 'author' ? 'Author' : 'Writer';
         resolvedAuthorId = user.id;
       } else {
         // Admin role: check dropdown selection or fall back to Editorial Desk
         const selectedAuthor = authors.find((a) => a.id === authorId);
         if (selectedAuthor) {
           authorName = selectedAuthor.fullName;
-          authorAvatar = selectedAuthor.avatarUrl ||
-            'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=200';
+          authorAvatar =
+            selectedAuthor.avatarUrl ||
+            `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(selectedAuthor.fullName)}`;
           authorRoleLabel = selectedAuthor.role === 'author' ? 'Author' : 'Writer';
           resolvedAuthorId = selectedAuthor.id;
         } else {
-          authorName = user?.fullName || 'Editorial Desk';
-          authorAvatar = user?.avatarUrl ||
+          authorName = 'Editorial Desk';
+          authorAvatar =
             'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=200';
-          authorRoleLabel = user?.role === 'admin' ? 'Chief Editor' : 'Staff Journalist';
+          authorRoleLabel = 'Chief Editor';
           resolvedAuthorId = undefined;
         }
       }
@@ -212,7 +217,7 @@ export const ArticleUpload: React.FC = () => {
           readTimeMinutes: Math.max(1, Math.ceil(contentEn.trim().split(/\s+/).length / 180)),
           tags: ['LateKhabar', selectedCat?.nameEn || 'News'],
         },
-        resolvedAuthorId || user?.id
+        resolvedAuthorId
       );
 
       if (created) {
