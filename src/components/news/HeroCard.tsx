@@ -26,6 +26,10 @@ export const HeroCard: React.FC<HeroCardProps> = ({ article }) => {
             src={article.imageUrl}
             alt={title}
             className="w-full h-[360px] md:h-[420px] object-cover transition-transform duration-500 group-hover:scale-105"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src =
+                'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&q=80&w=1200';
+            }}
           />
         </Link>
         {article.isBreaking && (

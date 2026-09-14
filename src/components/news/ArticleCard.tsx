@@ -27,6 +27,10 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({ article, variant = 'gr
             src={article.imageUrl}
             alt={title}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src =
+                'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&q=80&w=1200';
+            }}
           />
         </Link>
         <div className="flex flex-col justify-between flex-grow">
@@ -65,6 +69,10 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({ article, variant = 'gr
             src={article.imageUrl}
             alt={title}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src =
+                'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&q=80&w=1200';
+            }}
           />
         </Link>
         <button

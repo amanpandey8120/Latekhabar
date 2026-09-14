@@ -12,6 +12,9 @@ import type { DbCategory, DbNews, DbNewsImage, DbNewsVideo } from '../types/data
 //   published_at, created_at, updated_at, status,
 //   is_trending, is_featured, state, city, featured_image
 // ─────────────────────────────────────────────────────────────────────────────
+export const DEFAULT_ARTICLE_IMAGE =
+  'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&q=80&w=1200';
+
 export const mapDbRowToArticle = (
   row: DbNews | Record<string, unknown>,
   categoryMap?: Map<string, { nameEn: string; nameHi: string; slug: string }>,
@@ -59,6 +62,8 @@ export const mapDbRowToArticle = (
     )}`;
   }
 
+  const rawImage = ((r.image_url as string) || (r.featured_image as string) || '').trim();
+
   return {
     id: (r.id as string) || '',
     slug: (r.slug as string) || '',
@@ -92,8 +97,9 @@ export const mapDbRowToArticle = (
         ? 'archived'
         : 'draft') as 'draft' | 'published' | 'archived',
 
-    imageUrl: (r.featured_image ?? r.image_url ??
-      'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&q=80&w=1200') as string,
+    // Only substitute the default placeholder when both DB image columns are empty/null.
+    // A real URL from either column takes priority — never overwrite it with the default.
+    imageUrl: rawImage.length > 0 ? rawImage : DEFAULT_ARTICLE_IMAGE,
 
     imageCaption: (r.image_caption) as string | undefined,
     videoUrl: (r.video_url) as string | undefined,
@@ -200,7 +206,7 @@ export const newsService = {
         'id, slug, title_en, title_hi, summary_en, summary_hi, ' +
         'content_en, content_hi, category_id, author_id, ' +
         'published_at, created_at, updated_at, status, ' +
-        'is_trending, is_featured, state, city, featured_image'
+        'is_trending, is_featured, state, city, image_url, featured_image'
       );
 
       // Published filter
@@ -329,7 +335,7 @@ export const newsService = {
           'id, slug, title_en, title_hi, summary_en, summary_hi, ' +
           'content_en, content_hi, category_id, author_id, ' +
           'published_at, created_at, updated_at, status, ' +
-          'is_trending, is_featured, state, city, featured_image'
+          'is_trending, is_featured, state, city, image_url, featured_image'
         )
         .eq('slug', slug)
         .single();
@@ -647,6 +653,8 @@ export const newsService = {
       status: newArticleData.status || 'published',
       is_trending: newArticleData.isTrending ?? false,
       is_featured: newArticleData.isFeatured ?? false,
+      // Write to both columns so existing queries that read either one always get the URL
+      image_url: newArticleData.imageUrl || null,
       featured_image: newArticleData.imageUrl || null,
       state: newArticleData.state || null,
       city: newArticleData.city || null,
@@ -714,7 +722,10 @@ export const newsService = {
     if (updates.contentEn !== undefined) dbUpdates.content_en  = updates.contentEn;
     if (updates.contentHi !== undefined) dbUpdates.content_hi  = updates.contentHi;
     if (updates.categoryId !== undefined) dbUpdates.category_id = updates.categoryId || null;
-    if (updates.imageUrl !== undefined)  dbUpdates.featured_image = updates.imageUrl;
+    if (updates.imageUrl !== undefined) {
+      dbUpdates.image_url = updates.imageUrl || null;
+      dbUpdates.featured_image = updates.imageUrl || null;
+    }
     if (updates.isTrending !== undefined) dbUpdates.is_trending = updates.isTrending;
     if (updates.isFeatured !== undefined) dbUpdates.is_featured = updates.isFeatured;
     if (updates.state !== undefined)     dbUpdates.state       = updates.state;

@@ -125,6 +125,22 @@ export const ArticleUpload: React.FC = () => {
     try {
       let finalImageUrl = imageUrl.trim();
 
+      // Validate the pasted URL before using it
+      if (finalImageUrl && !imageFile) {
+        try {
+          const parsed = new URL(finalImageUrl);
+          if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+            setError('Image URL must start with https:// or http://');
+            setSubmitting(false);
+            return;
+          }
+        } catch {
+          setError('Please enter a valid image URL (e.g. https://example.com/image.jpg)');
+          setSubmitting(false);
+          return;
+        }
+      }
+
       // If an image file was selected, upload it to Supabase Storage 'news-images'
       if (imageFile) {
         setUploadingImage(true);
@@ -139,9 +155,9 @@ export const ArticleUpload: React.FC = () => {
         finalImageUrl = uploadedUrl;
       }
 
-      if (!finalImageUrl) {
-        finalImageUrl = 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&q=80&w=1200';
-      }
+      // Leave finalImageUrl empty if nothing was provided; the service layer
+      // will record null in the DB and mapDbRowToArticle will render the placeholder.
+      // This keeps the stored value honest — null means "no image set".
 
       const selectedCat = categories.find((c) => c.id === categoryId);
 
@@ -486,13 +502,28 @@ export const ArticleUpload: React.FC = () => {
               <span className="text-xs text-gray-500">or</span>
 
               <input
-                type="url"
+                type="text"
                 value={imageUrl}
                 onChange={(e) => {
-                  setImageUrl(e.target.value);
-                  if (e.target.value) {
-                    setImagePreview(e.target.value);
-                    setImageFile(null);
+                  const val = e.target.value.trim();
+                  setImageUrl(val);
+                  // Validate URL format before updating the preview
+                  if (val) {
+                    try {
+                      const parsed = new URL(val);
+                      if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
+                        setImagePreview(val);
+                        setImageFile(null);
+                        setError('');
+                      } else {
+                        setError('Image URL must start with https:// or http://');
+                      }
+                    } catch {
+                      setError('Please enter a valid image URL (e.g. https://example.com/image.jpg)');
+                    }
+                  } else {
+                    setImagePreview('');
+                    setError('');
                   }
                 }}
                 placeholder="Paste Image URL (https://images.unsplash.com/...)"

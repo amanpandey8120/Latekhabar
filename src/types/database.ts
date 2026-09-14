@@ -59,11 +59,14 @@ export interface DbNews {
   is_featured: boolean;
   // is_published does NOT exist — use status = 'published'
   // is_breaking does NOT exist in DB
-  // Image: actual DB column is featured_image (not image_url)
-  featured_image: string | null;
-  // These do NOT exist in DB: video_url, image_caption, tags,
-  //   author_name, author_avatar, author_role, category_slug,
-  //   read_time_minutes, views_count, saves_count, is_breaking, is_published
+  // Image: actual DB columns in Supabase public.news (image_url is the primary column, featured_image for compatibility)
+  image_url?: string | null;
+  featured_image?: string | null;
+  image_caption?: string | null;
+  video_url?: string | null;
+  excerpt_en?: string | null;
+  excerpt_hi?: string | null;
+  is_breaking?: boolean;
   state: string | null;
   city: string | null;
   created_at: string;
