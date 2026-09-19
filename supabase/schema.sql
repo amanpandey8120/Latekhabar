@@ -159,6 +159,22 @@ AS $$
   );
 $$;
 
+-- 4.2 SECURE AUTHOR/WRITER CHECK FUNCTION
+CREATE OR REPLACE FUNCTION public.is_author_or_writer()
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+STABLE
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.profiles
+    WHERE id = auth.uid()
+      AND role IN ('author', 'writer')
+  );
+$$;
+
 -- 4.2 ROLE PROTECTION TRIGGER (Disallows normal users from escalating role to admin)
 CREATE OR REPLACE FUNCTION public.protect_profile_role()
 RETURNS trigger
@@ -308,18 +324,36 @@ CREATE POLICY "news_select_published_or_admin"
     OR public.is_admin()
   );
 
--- INSERT: Only admins can insert news
-CREATE POLICY "news_insert_admin_only"
+-- INSERT: Admins and Authors/Writers can insert news (authors/writers must set author_id to auth.uid() or null)
+CREATE POLICY "news_insert_staff"
   ON public.news
   FOR INSERT
-  WITH CHECK (public.is_admin());
+  WITH CHECK (
+    public.is_admin()
+    OR (
+      public.is_author_or_writer()
+      AND (author_id = auth.uid() OR author_id IS NULL)
+    )
+  );
 
--- UPDATE: Only admins can update news
-CREATE POLICY "news_update_admin_only"
+-- UPDATE: Admins can update any news; Authors/Writers can update only their own articles
+CREATE POLICY "news_update_staff"
   ON public.news
   FOR UPDATE
-  USING (public.is_admin())
-  WITH CHECK (public.is_admin());
+  USING (
+    public.is_admin()
+    OR (
+      public.is_author_or_writer()
+      AND author_id = auth.uid()
+    )
+  )
+  WITH CHECK (
+    public.is_admin()
+    OR (
+      public.is_author_or_writer()
+      AND author_id = auth.uid()
+    )
+  );
 
 -- DELETE: Only admins can delete news
 CREATE POLICY "news_delete_admin_only"

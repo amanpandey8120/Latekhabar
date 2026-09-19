@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { Article } from '../../types';
 import { newsService } from '../../services/newsService';
-import { ExternalLink, Zap, TrendingUp } from 'lucide-react';
+import { ExternalLink, Zap, TrendingUp, Edit3 } from 'lucide-react';
 
 /**
  * AdminNewsFeed — accessible at /admin/news
@@ -102,14 +102,23 @@ export const AdminNewsFeed: React.FC = () => {
                   {article.viewsCount?.toLocaleString()} views · {article.readTimeMinutes} min read
                 </p>
               </div>
-              <Link
-                to={`/article/${article.slug}`}
-                target="_blank"
-                className="flex-shrink-0 p-2 text-gray-500 hover:text-white transition-colors"
-                title="View article"
-              >
-                <ExternalLink size={14} />
-              </Link>
+              <div className="flex-shrink-0 flex items-center gap-2">
+                <Link
+                  to={`/admin/articles/edit/${article.id}`}
+                  className="p-2 text-amber-400 hover:text-amber-300 transition-colors"
+                  title="Edit article"
+                >
+                  <Edit3 size={14} />
+                </Link>
+                <Link
+                  to={`/article/${article.slug}`}
+                  target="_blank"
+                  className="p-2 text-gray-500 hover:text-white transition-colors"
+                  title="View article"
+                >
+                  <ExternalLink size={14} />
+                </Link>
+              </div>
             </div>
           ))
         )}

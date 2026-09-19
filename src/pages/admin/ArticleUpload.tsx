@@ -1,23 +1,35 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { newsService, getArticleAuthors } from '../../services/newsService';
 import type { AuthorProfile } from '../../services/newsService';
 import { useAuth } from '../../context/AuthContext';
 import { useStaffAccess } from '../../context/StaffAccessContext';
 import { LOCATIONS_DATA } from '../../constants/locations';
-import type { Category } from '../../types';
-import { Upload, Image as ImageIcon, Video, AlertCircle, CheckCircle2, Loader2, Camera, UserCircle } from 'lucide-react';
+import type { Category, Article } from '../../types';
+import { Upload, Image as ImageIcon, Video, AlertCircle, CheckCircle2, Loader2, Camera, UserCircle, Edit3, ShieldAlert } from 'lucide-react';
 
 export const ArticleUpload: React.FC = () => {
+  const { id } = useParams<{ id?: string }>();
+  const isEditMode = Boolean(id);
+
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { role: staffRole } = useStaffAccess();
+  const { role: staffRole, userId: staffUserId } = useStaffAccess();
   const currentRole = (staffRole || user?.role || 'user').toLowerCase().trim();
   const isAuthorOrWriter = currentRole === 'author' || currentRole === 'writer';
+  const effectiveUserId = staffUserId || user?.id;
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [loadingCats, setLoadingCats] = useState(true);
+  const [catError, setCatError] = useState('');
 
+  // Loading state for edit mode
+  const [loadingArticle, setLoadingArticle] = useState(isEditMode);
+  const [originalArticle, setOriginalArticle] = useState<Article | null>(null);
+  const [permissionDenied, setPermissionDenied] = useState(false);
+  const [existingStatus, setExistingStatus] = useState<'draft' | 'published' | 'archived'>('published');
+
+  // Form Fields
   const [titleEn, setTitleEn] = useState('');
   const [titleHi, setTitleHi] = useState('');
   const [excerptEn, setExcerptEn] = useState('');
@@ -35,6 +47,10 @@ export const ArticleUpload: React.FC = () => {
   const [isTrending, setIsTrending] = useState(false);
   const [isFeatured, setIsFeatured] = useState(false);
 
+  // Author/Writer selection (for Admins)
+  const [authors, setAuthors] = useState<AuthorProfile[]>([]);
+  const [authorId, setAuthorId] = useState<string>(''); // '' = Editorial Desk
+
   const [submitting, setSubmitting] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [error, setError] = useState('');
@@ -42,12 +58,7 @@ export const ArticleUpload: React.FC = () => {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [catError, setCatError] = useState('');
-
-  // Author/Writer selection (only for Admins)
-  const [authors, setAuthors] = useState<AuthorProfile[]>([]);
-  const [authorId, setAuthorId] = useState<string>(''); // '' = Editorial Desk
-
+  // Load Categories & Authors
   useEffect(() => {
     let isMounted = true;
     async function loadCats() {
@@ -57,7 +68,7 @@ export const ArticleUpload: React.FC = () => {
         const cats = await newsService.getCategories();
         if (isMounted) {
           setCategories(cats);
-          if (cats.length > 0) {
+          if (cats.length > 0 && !isEditMode) {
             setCategoryId(cats[0].id);
           }
         }
@@ -85,7 +96,73 @@ export const ArticleUpload: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [isAuthorOrWriter]);
+  }, [isAuthorOrWriter, isEditMode]);
+
+  // Load existing article data in Edit mode
+  useEffect(() => {
+    let isMounted = true;
+    if (!id) {
+      setLoadingArticle(false);
+      return;
+    }
+
+    async function loadArticle() {
+      setLoadingArticle(true);
+      setError('');
+      try {
+        const art = await newsService.getArticleById(id!);
+        if (!isMounted) return;
+
+        if (!art) {
+          setError('Article not found or you do not have permission to view it.');
+          setLoadingArticle(false);
+          return;
+        }
+
+        // Enforce Author/Writer ownership permissions
+        if (isAuthorOrWriter && effectiveUserId && art.authorId && art.authorId !== effectiveUserId) {
+          setPermissionDenied(true);
+          setError('Permission Denied: You can only edit articles that you have authored.');
+          setLoadingArticle(false);
+          return;
+        }
+
+        setOriginalArticle(art);
+        setTitleEn(art.titleEn || '');
+        setTitleHi(art.titleHi || '');
+        setExcerptEn(art.excerptEn || '');
+        setExcerptHi(art.excerptHi || '');
+        setContentEn(art.contentEn || '');
+        setContentHi(art.contentHi || '');
+        if (art.categoryId) setCategoryId(art.categoryId);
+        if (art.state) setState(art.state);
+        if (art.city) setCity(art.city);
+        if (art.imageUrl) {
+          setImageUrl(art.imageUrl);
+          setImagePreview(art.imageUrl);
+        }
+        if (art.videoUrl) setVideoUrl(art.videoUrl);
+        setIsBreaking(Boolean(art.isBreaking));
+        setIsTrending(Boolean(art.isTrending));
+        setIsFeatured(Boolean(art.isFeatured));
+        if (art.authorId) setAuthorId(art.authorId);
+        if (art.status) setExistingStatus(art.status);
+      } catch (err: any) {
+        if (isMounted) {
+          setError(err?.message || 'Failed to load article details.');
+        }
+      } finally {
+        if (isMounted) {
+          setLoadingArticle(false);
+        }
+      }
+    }
+
+    loadArticle();
+    return () => {
+      isMounted = false;
+    };
+  }, [id, isAuthorOrWriter, effectiveUserId]);
 
   const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -115,6 +192,11 @@ export const ArticleUpload: React.FC = () => {
     setError('');
     setSuccess('');
 
+    if (permissionDenied) {
+      setError('Permission Denied: You cannot save changes to this article.');
+      return;
+    }
+
     if (!titleEn.trim() || !contentEn.trim()) {
       setError('Please provide at least an English title and content body.');
       return;
@@ -125,7 +207,7 @@ export const ArticleUpload: React.FC = () => {
     try {
       let finalImageUrl = imageUrl.trim();
 
-      // Validate the pasted URL before using it
+      // Validate pasted URL before using it if no file was uploaded
       if (finalImageUrl && !imageFile) {
         try {
           const parsed = new URL(finalImageUrl);
@@ -148,7 +230,6 @@ export const ArticleUpload: React.FC = () => {
         setUploadingImage(false);
 
         if (uploadErr || !uploadedUrl) {
-          // Show the real error from Supabase Storage so the issue is diagnosable
           setError(uploadErr ?? 'Image upload failed — no URL returned. Check the Supabase Storage bucket and RLS policies.');
           setSubmitting(false);
           return;
@@ -156,37 +237,22 @@ export const ArticleUpload: React.FC = () => {
         finalImageUrl = uploadedUrl;
       }
 
-      // Leave finalImageUrl empty if nothing was provided; the service layer
-      // will record null in the DB and mapDbRowToArticle will render the placeholder.
-      // This keeps the stored value honest — null means "no image set".
-
       const selectedCat = categories.find((c) => c.id === categoryId);
 
-      const slug = titleEn
-        .toLowerCase()
-        .trim()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)+/g, '');
-
-      // Resolve author based on role
+      // Resolve author based on role and operation mode
+      let resolvedAuthorId: string | null = null;
       let authorName: string;
       let authorAvatar: string;
       let authorRoleLabel: string;
-      let resolvedAuthorId: string | undefined;
 
-      const effectiveRole = (staffRole || user?.role || 'user').toLowerCase().trim();
-      const isAuthorOrWriterUser = effectiveRole === 'author' || effectiveRole === 'writer';
-
-      if (isAuthorOrWriterUser && user) {
-        // Author / Writer role: automatically link to user's profile
-        authorName = user.fullName;
-        authorAvatar =
-          user.avatarUrl ||
-          `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.fullName)}`;
-        authorRoleLabel = effectiveRole === 'author' ? 'Author' : 'Writer';
-        resolvedAuthorId = user.id;
+      if (isAuthorOrWriter && effectiveUserId) {
+        // Author / Writer: retain their own author_id
+        resolvedAuthorId = effectiveUserId;
+        authorName = user?.fullName || 'Author';
+        authorAvatar = user?.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(authorName)}`;
+        authorRoleLabel = currentRole === 'author' ? 'Author' : 'Writer';
       } else {
-        // Admin role: check dropdown selection or fall back to Editorial Desk
+        // Admin: use author dropdown or Editorial Desk
         const selectedAuthor = authors.find((a) => a.id === authorId);
         if (selectedAuthor) {
           authorName = selectedAuthor.fullName;
@@ -195,18 +261,25 @@ export const ArticleUpload: React.FC = () => {
             `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(selectedAuthor.fullName)}`;
           authorRoleLabel = selectedAuthor.role === 'author' ? 'Author' : 'Writer';
           resolvedAuthorId = selectedAuthor.id;
+        } else if (isEditMode && originalArticle?.authorId && !authorId) {
+          // If editing as admin and authorId was preserved from article
+          resolvedAuthorId = null; // Admin explicitly set to Editorial Desk
+          authorName = 'Editorial Desk';
+          authorAvatar = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=200';
+          authorRoleLabel = 'Chief Editor';
         } else {
           authorName = 'Editorial Desk';
-          authorAvatar =
-            'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=200';
+          authorAvatar = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=200';
           authorRoleLabel = 'Chief Editor';
-          resolvedAuthorId = undefined;
+          resolvedAuthorId = null;
         }
       }
 
-      const created = await newsService.createArticle(
-        {
-          slug: `${slug}-${Date.now().toString().slice(-4)}`,
+      const calculatedReadTime = Math.max(1, Math.ceil(contentEn.trim().split(/\s+/).length / 180));
+
+      if (isEditMode && id) {
+        // ── EDIT EXISTING ARTICLE (Update public.news row) ─────────────────
+        const updateResult = await newsService.updateArticle(id, {
           titleEn: titleEn.trim(),
           titleHi: titleHi.trim() || titleEn.trim(),
           excerptEn: excerptEn.trim() || titleEn.trim(),
@@ -214,39 +287,77 @@ export const ArticleUpload: React.FC = () => {
           contentEn: contentEn.trim(),
           contentHi: contentHi.trim() || contentEn.trim(),
           categoryId: categoryId || (selectedCat ? selectedCat.id : ''),
-          categoryNameEn: selectedCat?.nameEn || 'General',
-          categoryNameHi: selectedCat?.nameHi || 'सामान्य',
-          authorId: resolvedAuthorId,
-          author: {
-            name: authorName,
-            avatar: authorAvatar,
-            role: authorRoleLabel,
-          },
-          publishedAt: new Date().toISOString(),
-          status: 'published',
           imageUrl: finalImageUrl,
           videoUrl: videoUrl.trim() || undefined,
-          isBreaking,
           isTrending,
           isFeatured,
           state,
           city,
-          readTimeMinutes: Math.max(1, Math.ceil(contentEn.trim().split(/\s+/).length / 180)),
-          tags: ['LateKhabar', selectedCat?.nameEn || 'News'],
-        },
-        resolvedAuthorId
-      );
+          status: existingStatus, // Keep existing published/draft status intact
+          readTimeMinutes: calculatedReadTime,
+          authorId: resolvedAuthorId ?? undefined,
+        });
 
-      if (created) {
-        setSuccess('Article published successfully! Redirecting to articles list...');
-        setTimeout(() => {
-          navigate('/admin/articles');
-        }, 1500);
+        if (updateResult.success) {
+          setSuccess('Article updated successfully! Redirecting to articles list...');
+          setTimeout(() => {
+            navigate('/admin/articles');
+          }, 1500);
+        } else {
+          setError(updateResult.error || 'Failed to update article. Please verify your connection and permissions.');
+        }
       } else {
-        setError('Failed to publish article. Please verify your connection and permissions.');
+        // ── CREATE NEW ARTICLE (Insert into public.news) ────────────────────
+        const slug = titleEn
+          .toLowerCase()
+          .trim()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/(^-|-$)+/g, '');
+
+        const created = await newsService.createArticle(
+          {
+            slug: `${slug}-${Date.now().toString().slice(-4)}`,
+            titleEn: titleEn.trim(),
+            titleHi: titleHi.trim() || titleEn.trim(),
+            excerptEn: excerptEn.trim() || titleEn.trim(),
+            excerptHi: excerptHi.trim() || titleHi.trim() || titleEn.trim(),
+            contentEn: contentEn.trim(),
+            contentHi: contentHi.trim() || contentEn.trim(),
+            categoryId: categoryId || (selectedCat ? selectedCat.id : ''),
+            categoryNameEn: selectedCat?.nameEn || 'General',
+            categoryNameHi: selectedCat?.nameHi || 'सामान्य',
+            authorId: resolvedAuthorId || undefined,
+            author: {
+              name: authorName,
+              avatar: authorAvatar,
+              role: authorRoleLabel,
+            },
+            publishedAt: new Date().toISOString(),
+            status: 'published',
+            imageUrl: finalImageUrl,
+            videoUrl: videoUrl.trim() || undefined,
+            isBreaking,
+            isTrending,
+            isFeatured,
+            state,
+            city,
+            readTimeMinutes: calculatedReadTime,
+            tags: ['LateKhabar', selectedCat?.nameEn || 'News'],
+          },
+          resolvedAuthorId || undefined
+        );
+
+        if (created) {
+          setSuccess('Article published successfully! Redirecting to articles list...');
+          setTimeout(() => {
+            navigate('/admin/articles');
+          }, 1500);
+        } else {
+          setError('Failed to publish article. Please verify your connection and permissions.');
+        }
       }
     } catch (err: any) {
-      setError(err?.message || 'An unexpected error occurred during publishing.');
+      setError(err?.message || `An unexpected error occurred during ${isEditMode ? 'updating' : 'publishing'}.`);
     } finally {
       setSubmitting(false);
       setUploadingImage(false);
@@ -255,14 +366,60 @@ export const ArticleUpload: React.FC = () => {
 
   const currentLocation = LOCATIONS_DATA.find((l) => l.state === state) || LOCATIONS_DATA[0];
 
+  if (loadingArticle) {
+    return (
+      <div className="max-w-4xl mx-auto py-16 flex flex-col items-center justify-center gap-3 text-gray-400">
+        <Loader2 size={32} className="animate-spin text-primary" />
+        <p className="text-sm">Loading article data from Supabase...</p>
+      </div>
+    );
+  }
+
+  if (permissionDenied) {
+    return (
+      <div className="max-w-4xl mx-auto py-12">
+        <div className="bg-[#1c1c1c] border border-red-800/60 rounded-2xl p-8 text-center space-y-4">
+          <ShieldAlert size={48} className="text-red-400 mx-auto" />
+          <h2 className="text-xl font-bold text-white">Permission Denied</h2>
+          <p className="text-sm text-gray-400 max-w-md mx-auto">
+            You do not have permission to edit this article. Staff authors and writers can only edit stories they have created.
+          </p>
+          <button
+            onClick={() => navigate('/admin/articles')}
+            className="px-6 py-2.5 bg-primary text-white rounded-xl text-xs font-bold hover:bg-primary-container transition-colors cursor-pointer"
+          >
+            Return to My Articles
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       {/* Header */}
       <div className="border-b border-gray-800 pb-4">
-        <h1 className="text-3xl font-bold font-headline-md text-white">Publish New Article</h1>
-        <p className="text-xs text-gray-400 mt-1">
-          Create and publish editorial news in English and Hindi directly into Supabase database.
-        </p>
+        <div className="flex items-center gap-3">
+          {isEditMode ? (
+            <div className="p-2 bg-primary/10 border border-primary/20 rounded-xl text-primary">
+              <Edit3 size={24} />
+            </div>
+          ) : (
+            <div className="p-2 bg-primary/10 border border-primary/20 rounded-xl text-primary">
+              <Upload size={24} />
+            </div>
+          )}
+          <div>
+            <h1 className="text-3xl font-bold font-headline-md text-white">
+              {isEditMode ? 'Edit Article' : 'Publish New Article'}
+            </h1>
+            <p className="text-xs text-gray-400 mt-1">
+              {isEditMode
+                ? 'Modify and update existing editorial news story in the Supabase database.'
+                : 'Create and publish editorial news in English and Hindi directly into Supabase database.'}
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Status Alerts */}
@@ -508,7 +665,7 @@ export const ArticleUpload: React.FC = () => {
                 onChange={(e) => {
                   const val = e.target.value.trim();
                   setImageUrl(val);
-                  // Validate URL format before updating the preview
+                  // Validate URL format before updating preview
                   if (val) {
                     try {
                       const parsed = new URL(val);
@@ -618,12 +775,18 @@ export const ArticleUpload: React.FC = () => {
             {submitting ? (
               <>
                 <Loader2 size={16} className="animate-spin" />
-                <span>{uploadingImage ? 'Uploading Image...' : 'Publishing Article...'}</span>
+                <span>
+                  {uploadingImage
+                    ? 'Uploading Image...'
+                    : isEditMode
+                    ? 'Updating Article...'
+                    : 'Publishing Article...'}
+                </span>
               </>
             ) : (
               <>
-                <Upload size={16} />
-                <span>Publish Article</span>
+                {isEditMode ? <Edit3 size={16} /> : <Upload size={16} />}
+                <span>{isEditMode ? 'Update Article' : 'Publish Article'}</span>
               </>
             )}
           </button>

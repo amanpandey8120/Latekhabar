@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import type { Article, Category } from '../../types';
 import { newsService } from '../../services/newsService';
 import { useStaffAccess } from '../../context/StaffAccessContext';
-import { Search, Plus, Trash2, ExternalLink, Filter, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Search, Plus, Trash2, ExternalLink, Filter, Loader2, AlertCircle, CheckCircle2, Edit3 } from 'lucide-react';
 
 export const NewsManagement: React.FC = () => {
   const { role, userId } = useStaffAccess();
@@ -210,6 +210,13 @@ export const NewsManagement: React.FC = () => {
                     </td>
                     <td className="p-4 text-right">
                       <div className="flex items-center justify-end gap-3">
+                        <Link
+                          to={`/admin/articles/edit/${art.id}`}
+                          className="text-amber-400 hover:text-amber-300 p-1 transition-colors"
+                          title="Edit Article"
+                        >
+                          <Edit3 size={16} />
+                        </Link>
                         <Link
                           to={`/article/${art.slug}`}
                           target="_blank"

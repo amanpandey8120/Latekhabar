@@ -157,7 +157,112 @@ export async function getArticleAuthors(): Promise<AuthorProfile[]> {
   }));
 }
 
+/**
+ * Internal helper: Enrich a raw public.news row with category details,
+ * associated gallery images/videos, and author profile details.
+ */
+async function enrichSingleNewsRow(newsRow: Record<string, unknown>): Promise<Article> {
+  const r = newsRow;
 
+  // Resolve category name
+  let categoryNameEn = 'General';
+  let categoryNameHi = 'सामान्य';
+  if (r.category_id) {
+    const { data: catData } = await supabase
+      .from('categories')
+      .select('name_en, name_hi')
+      .eq('id', r.category_id as string)
+      .single();
+    if (catData) {
+      categoryNameEn = (catData as Pick<DbCategory, 'name_en' | 'name_hi'>).name_en;
+      categoryNameHi = (catData as Pick<DbCategory, 'name_en' | 'name_hi'>).name_hi;
+    }
+  }
+
+  // Fetch gallery images
+  const articleImages: ArticleImage[] = [];
+  try {
+    const { data: imgRows } = await supabase
+      .from('news_images')
+      .select('id, image_url, caption_en, caption_hi')
+      .eq('news_id', r.id as string)
+      .order('display_order', { ascending: true });
+    if (imgRows) {
+      articleImages.push(
+        ...(imgRows as Pick<DbNewsImage, 'id' | 'image_url' | 'caption_en' | 'caption_hi'>[])
+          .map((img) => ({
+            id: img.id,
+            imageUrl: img.image_url,
+            captionEn: img.caption_en ?? undefined,
+            captionHi: img.caption_hi ?? undefined,
+          }))
+      );
+    }
+  } catch {
+    // news_images table optional
+  }
+
+  // Fetch videos
+  const articleVideos: ArticleVideo[] = [];
+  try {
+    const { data: vidRows } = await supabase
+      .from('news_videos')
+      .select('id, video_url, title_en, title_hi')
+      .eq('news_id', r.id as string)
+      .order('display_order', { ascending: true });
+    if (vidRows) {
+      articleVideos.push(
+        ...(vidRows as Pick<DbNewsVideo, 'id' | 'video_url' | 'title_en' | 'title_hi'>[])
+          .map((vid) => ({
+            id: vid.id,
+            videoUrl: vid.video_url,
+            titleEn: vid.title_en ?? undefined,
+            titleHi: vid.title_hi ?? undefined,
+          }))
+      );
+    }
+  } catch {
+    // news_videos table optional
+  }
+
+  // Resolve author details from public.profiles if author_id is set
+  const enrichedRow: Record<string, unknown> = { ...newsRow };
+  if (enrichedRow.author_id) {
+    try {
+      const { data: profileData, error: profileErr } = await supabase
+        .from('profiles')
+        .select('id, full_name, avatar_url, role')
+        .eq('id', enrichedRow.author_id as string)
+        .single();
+
+      if (!profileErr && profileData) {
+        const pd = profileData as { full_name?: string; avatar_url?: string; role?: string };
+        const pRole = (pd.role as string)?.toLowerCase();
+        const roleLabel =
+          pRole === 'author'
+            ? 'Author'
+            : pRole === 'writer'
+            ? 'Writer'
+            : pRole === 'admin'
+            ? 'Chief Editor'
+            : 'Staff Writer';
+
+        enrichedRow.author_name = pd.full_name || 'Author';
+        enrichedRow.author_avatar = pd.avatar_url || null;
+        enrichedRow.author_role = roleLabel;
+      } else if (profileErr) {
+        console.warn('[newsService] author profile fetch notice:', profileErr.message);
+      }
+    } catch (err) {
+      console.warn('[newsService] author profile lookup error:', err);
+    }
+  }
+
+  const art = mapDbRowToArticle(enrichedRow as unknown as DbNews, undefined, articleImages, articleVideos);
+  art.categoryNameEn = categoryNameEn;
+  art.categoryNameHi = categoryNameHi;
+  return art;
+}
 
 export const newsService = {
   // ── 1. GET ARTICLES (Public / Filtered) ─────────────────────────────────
@@ -322,7 +427,7 @@ export const newsService = {
     }
   },
 
-  // ── 2. GET ARTICLE BY SLUG ───────────────────────────────────────────────
+  // ── 2. GET ARTICLE BY SLUG / ID ──────────────────────────────────────────
   async getArticleBySlug(slug: string): Promise<Article | null> {
     if (!isSupabaseConfigured()) {
       console.warn('[newsService] Supabase is not configured.');
@@ -350,108 +455,43 @@ export const newsService = {
 
       if (!newsRow) return null;
 
-      const r = newsRow as unknown as Record<string, unknown>;
-
-      // Resolve category name
-      let categoryNameEn = 'General';
-      let categoryNameHi = 'सामान्य';
-      if (r.category_id) {
-        const { data: catData } = await supabase
-          .from('categories')
-          .select('name_en, name_hi')
-          .eq('id', r.category_id as string)
-          .single();
-        if (catData) {
-          categoryNameEn = (catData as Pick<DbCategory, 'name_en' | 'name_hi'>).name_en;
-          categoryNameHi = (catData as Pick<DbCategory, 'name_en' | 'name_hi'>).name_hi;
-        }
-      }
-
-      // Fetch gallery images
-      const articleImages: ArticleImage[] = [];
-      try {
-        const { data: imgRows } = await supabase
-          .from('news_images')
-          .select('id, image_url, caption_en, caption_hi')
-          .eq('news_id', r.id as string)
-          .order('display_order', { ascending: true });
-        if (imgRows) {
-          articleImages.push(
-            ...(imgRows as Pick<DbNewsImage, 'id' | 'image_url' | 'caption_en' | 'caption_hi'>[])
-              .map((img) => ({
-                id: img.id,
-                imageUrl: img.image_url,
-                captionEn: img.caption_en ?? undefined,
-                captionHi: img.caption_hi ?? undefined,
-              }))
-          );
-        }
-      } catch {
-        // news_images table optional
-      }
-
-      // Fetch videos
-      const articleVideos: ArticleVideo[] = [];
-      try {
-        const { data: vidRows } = await supabase
-          .from('news_videos')
-          .select('id, video_url, title_en, title_hi')
-          .eq('news_id', r.id as string)
-          .order('display_order', { ascending: true });
-        if (vidRows) {
-          articleVideos.push(
-            ...(vidRows as Pick<DbNewsVideo, 'id' | 'video_url' | 'title_en' | 'title_hi'>[])
-              .map((vid) => ({
-                id: vid.id,
-                videoUrl: vid.video_url,
-                titleEn: vid.title_en ?? undefined,
-                titleHi: vid.title_hi ?? undefined,
-              }))
-          );
-        }
-      } catch {
-        // news_videos table optional
-      }
-
-      // Resolve author details from public.profiles if author_id is set
-      const enrichedRow: Record<string, unknown> = { ...(newsRow as unknown as Record<string, unknown>) };
-      if (enrichedRow.author_id) {
-        try {
-          const { data: profileData, error: profileErr } = await supabase
-            .from('profiles')
-            .select('id, full_name, avatar_url, role')
-            .eq('id', enrichedRow.author_id as string)
-            .single();
-
-          if (!profileErr && profileData) {
-            const pd = profileData as { full_name?: string; avatar_url?: string; role?: string };
-            const pRole = (pd.role as string)?.toLowerCase();
-            const roleLabel =
-              pRole === 'author'
-                ? 'Author'
-                : pRole === 'writer'
-                ? 'Writer'
-                : pRole === 'admin'
-                ? 'Chief Editor'
-                : 'Staff Writer';
-
-            enrichedRow.author_name = pd.full_name || 'Author';
-            enrichedRow.author_avatar = pd.avatar_url || null;
-            enrichedRow.author_role = roleLabel;
-          } else if (profileErr) {
-            console.warn('[newsService] getArticleBySlug author profile fetch notice:', profileErr.message);
-          }
-        } catch (err) {
-          console.warn('[newsService] getArticleBySlug author profile lookup error:', err);
-        }
-      }
-
-      const art = mapDbRowToArticle(enrichedRow as unknown as DbNews, undefined, articleImages, articleVideos);
-      art.categoryNameEn = categoryNameEn;
-      art.categoryNameHi = categoryNameHi;
-      return art;
+      return await enrichSingleNewsRow(newsRow as unknown as Record<string, unknown>);
     } catch (err) {
       console.error('[newsService] getArticleBySlug exception:', err);
+      return null;
+    }
+  },
+
+  async getArticleById(id: string): Promise<Article | null> {
+    if (!isSupabaseConfigured()) {
+      console.warn('[newsService] Supabase is not configured.');
+      return null;
+    }
+
+    try {
+      const { data: newsRow, error: newsErr } = await supabase
+        .from('news')
+        .select(
+          'id, slug, title_en, title_hi, summary_en, summary_hi, ' +
+          'content_en, content_hi, category_id, author_id, ' +
+          'published_at, created_at, updated_at, status, ' +
+          'is_trending, is_featured, state, city, featured_image'
+        )
+        .eq('id', id)
+        .single();
+
+      if (newsErr) {
+        if (newsErr.code !== 'PGRST116') {
+          console.error('[newsService] getArticleById error:', newsErr);
+        }
+        return null;
+      }
+
+      if (!newsRow) return null;
+
+      return await enrichSingleNewsRow(newsRow as unknown as Record<string, unknown>);
+    } catch (err) {
+      console.error('[newsService] getArticleById exception:', err);
       return null;
     }
   },
@@ -708,36 +748,53 @@ export const newsService = {
     return mapDbRowToArticle(data as DbNews);
   },
 
-  // ── 7. UPDATE NEWS ARTICLE (Admin) ───────────────────────────────────────
-  async updateArticle(id: string, updates: Partial<Article>): Promise<boolean> {
+  // ── 7. UPDATE NEWS ARTICLE (Admin / Author / Writer) ─────────────────────
+  async updateArticle(
+    id: string,
+    updates: Partial<Article> & { authorId?: string | null }
+  ): Promise<{ success: boolean; error?: string }> {
     if (!isSupabaseConfigured()) {
-      throw new Error('Supabase is not configured.');
+      return { success: false, error: 'Supabase is not configured — check environment variables.' };
     }
 
-    const dbUpdates: Record<string, unknown> = {};
-    if (updates.titleEn !== undefined)   dbUpdates.title_en    = updates.titleEn;
-    if (updates.titleHi !== undefined)   dbUpdates.title_hi    = updates.titleHi;
-    if (updates.excerptEn !== undefined) dbUpdates.summary_en  = updates.excerptEn;
-    if (updates.excerptHi !== undefined) dbUpdates.summary_hi  = updates.excerptHi;
-    if (updates.contentEn !== undefined) dbUpdates.content_en  = updates.contentEn;
-    if (updates.contentHi !== undefined) dbUpdates.content_hi  = updates.contentHi;
-    if (updates.categoryId !== undefined) dbUpdates.category_id = updates.categoryId || null;
-    if (updates.imageUrl !== undefined) {
-      // featured_image is the only image column on public.news
-      dbUpdates.featured_image = updates.imageUrl || null;
-    }
-    if (updates.isTrending !== undefined) dbUpdates.is_trending = updates.isTrending;
-    if (updates.isFeatured !== undefined) dbUpdates.is_featured = updates.isFeatured;
-    if (updates.state !== undefined)     dbUpdates.state       = updates.state;
-    if (updates.city !== undefined)      dbUpdates.city        = updates.city;
-    if (updates.status !== undefined)    dbUpdates.status      = updates.status;
+    try {
+      const dbUpdates: Record<string, unknown> = {
+        updated_at: new Date().toISOString(),
+      };
 
-    const { error } = await supabase.from('news').update(dbUpdates).eq('id', id);
-    if (error) {
-      console.error('[newsService] updateArticle error:', error);
-      return false;
+      if (updates.titleEn !== undefined)   dbUpdates.title_en    = updates.titleEn.trim();
+      if (updates.titleHi !== undefined)   dbUpdates.title_hi    = updates.titleHi.trim();
+      if (updates.excerptEn !== undefined) dbUpdates.summary_en  = updates.excerptEn.trim();
+      if (updates.excerptHi !== undefined) dbUpdates.summary_hi  = updates.excerptHi.trim();
+      if (updates.contentEn !== undefined) dbUpdates.content_en  = updates.contentEn.trim();
+      if (updates.contentHi !== undefined) dbUpdates.content_hi  = updates.contentHi.trim();
+      if (updates.categoryId !== undefined) dbUpdates.category_id = updates.categoryId || null;
+      if (updates.imageUrl !== undefined) {
+        // featured_image is the only image column on public.news
+        dbUpdates.featured_image = updates.imageUrl ? updates.imageUrl.trim() : null;
+      }
+      if (updates.videoUrl !== undefined)  dbUpdates.video_url   = updates.videoUrl ? updates.videoUrl.trim() : null;
+      if (updates.isTrending !== undefined) dbUpdates.is_trending = updates.isTrending;
+      if (updates.isFeatured !== undefined) dbUpdates.is_featured = updates.isFeatured;
+      if (updates.state !== undefined)     dbUpdates.state       = updates.state;
+      if (updates.city !== undefined)      dbUpdates.city        = updates.city;
+      if (updates.status !== undefined)    dbUpdates.status      = updates.status;
+      if (updates.readTimeMinutes !== undefined) dbUpdates.read_time_minutes = updates.readTimeMinutes;
+      if (updates.authorId !== undefined)  dbUpdates.author_id   = updates.authorId || null;
+
+      const { error } = await supabase.from('news').update(dbUpdates).eq('id', id);
+      if (error) {
+        console.error('[newsService] updateArticle error:', error);
+        return { success: false, error: error.message || 'Database update failed.' };
+      }
+      return { success: true };
+    } catch (err: any) {
+      console.error('[newsService] updateArticle exception:', err);
+      return {
+        success: false,
+        error: err?.message || 'An unexpected error occurred while updating the article.',
+      };
     }
-    return true;
   },
 
   // ── 8. DELETE NEWS ARTICLE (Admin) ───────────────────────────────────────
