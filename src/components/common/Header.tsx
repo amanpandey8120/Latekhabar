@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { Menu, X, Search, Globe, Moon, Sun, User as UserIcon, LogOut, Bookmark, Shield } from 'lucide-react';
+import { newsService } from '../../services/newsService';
+import type { Category } from '../../types';
 
 export const Header: React.FC = () => {
   const { language, toggleLanguage, t } = useLanguage();
@@ -12,18 +14,16 @@ export const Header: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const [navCategories, setNavCategories] = useState<Category[]>([]);
   const navigate = useNavigate();
   const location = useLocation();
 
-  const categories = [
-    { slug: 'national', key: 'national' },
-    { slug: 'international', key: 'international' },
-    { slug: 'business', key: 'business' },
-    { slug: 'sports', key: 'sports' },
-    { slug: 'entertainment', key: 'entertainment' },
-    { slug: 'tech', key: 'tech' },
-    { slug: 'environment', key: 'environment' },
-  ];
+  // Fetch active categories from Supabase on mount
+  useEffect(() => {
+    newsService.getCategories().then(setNavCategories).catch(() => {
+      // Silently fail — navigation will be empty rather than broken
+    });
+  }, []);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,6 +31,9 @@ export const Header: React.FC = () => {
       navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
     }
   };
+
+  /** Returns the display label for a category based on the active language */
+  const catLabel = (cat: Category) => (language === 'hi' ? cat.nameHi || cat.nameEn : cat.nameEn);
 
   return (
     <nav className="fixed w-full top-8 z-50 bg-surface dark:bg-[#181818] border-b border-outline-variant dark:border-gray-800 flex flex-col items-center max-w-container-max mx-auto left-0 right-0 transition-colors duration-200">
@@ -50,13 +53,13 @@ export const Header: React.FC = () => {
           </Link>
         </div>
 
-        {/* Center: Desktop Navigation Links */}
+        {/* Center: Desktop Navigation Links — dynamic from Supabase */}
         <div className="hidden md:flex items-center gap-6">
-          {categories.map((cat) => {
+          {navCategories.map((cat) => {
             const isActive = location.pathname === `/category/${cat.slug}`;
             return (
               <Link
-                key={cat.slug}
+                key={cat.id}
                 to={`/category/${cat.slug}`}
                 className={`text-nav-link font-nav-link text-sm font-medium transition-colors duration-200 pb-1 ${
                   isActive
@@ -64,20 +67,10 @@ export const Header: React.FC = () => {
                     : 'text-on-surface dark:text-gray-300 hover:text-primary dark:hover:text-primary-fixed'
                 }`}
               >
-                {t(cat.key)}
+                {catLabel(cat)}
               </Link>
             );
           })}
-          <Link
-            to="/local"
-            className={`text-nav-link font-nav-link text-sm font-medium transition-colors duration-200 pb-1 ${
-              location.pathname === '/local'
-                ? 'text-primary dark:text-primary-fixed border-b-2 border-primary dark:border-primary-fixed font-bold'
-                : 'text-on-surface dark:text-gray-300 hover:text-primary dark:hover:text-primary-fixed'
-            }`}
-          >
-            {t('localNews')}
-          </Link>
         </div>
 
         {/* Right Side Controls: Search, Language, Theme, Auth */}
@@ -197,23 +190,17 @@ export const Header: React.FC = () => {
         </div>
       </div>
 
-      {/* Mobile Horizontal Scroll Category Ribbon */}
+      {/* Mobile Horizontal Scroll Category Ribbon — dynamic from Supabase */}
       <div className="w-full md:hidden flex overflow-x-auto gap-4 py-2 px-gutter border-t border-gray-200 dark:border-gray-800 hide-scrollbar bg-surface dark:bg-[#181818]">
-        {categories.map((cat) => (
+        {navCategories.map((cat) => (
           <Link
-            key={cat.slug}
+            key={cat.id}
             to={`/category/${cat.slug}`}
             className="text-xs font-semibold text-on-surface dark:text-gray-300 hover:text-primary whitespace-nowrap px-2 py-1 rounded bg-surface-container-low dark:bg-gray-800"
           >
-            {t(cat.key)}
+            {catLabel(cat)}
           </Link>
         ))}
-        <Link
-          to="/local"
-          className="text-xs font-semibold text-on-surface dark:text-gray-300 hover:text-primary whitespace-nowrap px-2 py-1 rounded bg-surface-container-low dark:bg-gray-800"
-        >
-          {t('localNews')}
-        </Link>
       </div>
 
       {/* Mobile Expandable Menu Drawer */}
@@ -232,23 +219,16 @@ export const Header: React.FC = () => {
             </button>
           </form>
 
-          {categories.map((cat) => (
+          {navCategories.map((cat) => (
             <Link
-              key={cat.slug}
+              key={cat.id}
               to={`/category/${cat.slug}`}
               onClick={() => setMobileMenuOpen(false)}
               className="text-sm font-semibold text-gray-800 dark:text-gray-200 py-1.5 border-b border-gray-100 dark:border-gray-800"
             >
-              {t(cat.key)}
+              {catLabel(cat)}
             </Link>
           ))}
-          <Link
-            to="/local"
-            onClick={() => setMobileMenuOpen(false)}
-            className="text-sm font-semibold text-gray-800 dark:text-gray-200 py-1.5 border-b border-gray-100 dark:border-gray-800"
-          >
-            {t('localNews')}
-          </Link>
 
           {user ? (
             <div className="pt-2 border-t border-gray-200 dark:border-gray-800 space-y-2">
