@@ -15,6 +15,10 @@ export const Login: React.FC = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  React.useEffect(() => {
+    document.title = "Sign In | Late Khabar";
+  }, []);
+
   if (user && !success) {
     if (user.role === 'admin') {
       navigate('/admin');

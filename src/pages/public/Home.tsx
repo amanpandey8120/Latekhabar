@@ -16,6 +16,7 @@ export const Home: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    document.title = "Late Khabar";
     async function loadData() {
       setLoading(true);
       const [arts, locs] = await Promise.all([

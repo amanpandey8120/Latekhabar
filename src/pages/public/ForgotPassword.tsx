@@ -13,6 +13,10 @@ export const ForgotPassword: React.FC = () => {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
+  React.useEffect(() => {
+    document.title = "Forgot Password | Late Khabar";
+  }, []);
+
   const handleSupabaseError = (err: unknown): string => {
     if (!err) return t('networkError');
     const asErr = err as { message?: string; code?: string; toString?: () => string };

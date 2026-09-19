@@ -20,6 +20,7 @@ export const SearchPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    document.title = query ? `Search: ${query} | Late Khabar` : "Search News | Late Khabar";
     async function initCategories() {
       const cats = await newsService.getCategories();
       setCategories(cats);

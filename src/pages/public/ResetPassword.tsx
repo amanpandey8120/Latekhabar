@@ -22,6 +22,7 @@ export const ResetPassword: React.FC = () => {
 
   // ── Recovery Session Verification ──────────────────────────────────────────
   useEffect(() => {
+    document.title = "Reset Password | Late Khabar";
     let isMounted = true;
 
     const verifyRecoverySession = async () => {

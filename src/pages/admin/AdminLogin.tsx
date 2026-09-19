@@ -16,6 +16,7 @@ export const AdminLogin: React.FC = () => {
   // If authenticated as a regular user, do nothing — let them submit the form
   // which will show "Access denied" rather than silently redirecting away.
   useEffect(() => {
+    document.title = "Staff Portal | Late Khabar";
     if (!loading && user && user.role === 'admin') {
       navigate('/admin/dashboard', { replace: true });
     }

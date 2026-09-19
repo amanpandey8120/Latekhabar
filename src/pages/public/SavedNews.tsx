@@ -16,6 +16,7 @@ export const SavedNews: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    document.title = "Saved Articles | Late Khabar";
     let cancelled = false;
 
     async function loadSaved() {

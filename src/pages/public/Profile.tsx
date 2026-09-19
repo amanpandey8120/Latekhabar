@@ -49,6 +49,7 @@ export const Profile: React.FC = () => {
 
   // Redirect if not logged in
   useEffect(() => {
+    document.title = "User Profile | Late Khabar";
     if (!user) {
       navigate('/login');
     }

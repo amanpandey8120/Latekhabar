@@ -18,6 +18,7 @@ export const Onboarding: React.FC = () => {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    document.title = "Welcome | Late Khabar";
     async function loadCategories() {
       setLoadingCats(true);
       const cats = await newsService.getCategories();

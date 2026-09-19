@@ -18,6 +18,10 @@ export const Signup: React.FC = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  React.useEffect(() => {
+    document.title = "Create Account | Late Khabar";
+  }, []);
+
   // If already authenticated, redirect
   if (user && !success) {
     navigate('/profile');

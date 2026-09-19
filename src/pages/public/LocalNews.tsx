@@ -10,6 +10,7 @@ export const LocalNews: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    document.title = "Regional & Local News | Late Khabar";
     async function loadData() {
       setLoading(true);
       const [arts, locs] = await Promise.all([

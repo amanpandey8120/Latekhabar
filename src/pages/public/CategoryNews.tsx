@@ -29,6 +29,18 @@ export const CategoryNews: React.FC = () => {
     loadCategoryArticles();
   }, [slug]);
 
+  useEffect(() => {
+    if (category) {
+      const catName = language === 'hi' ? category.nameHi : category.nameEn;
+      document.title = `${catName} News | Late Khabar`;
+    } else {
+      document.title = "Late Khabar";
+    }
+    return () => {
+      document.title = "Late Khabar";
+    };
+  }, [category, language]);
+
   const catTitle = category ? (language === 'hi' ? category.nameHi : category.nameEn) : slug;
 
   return (

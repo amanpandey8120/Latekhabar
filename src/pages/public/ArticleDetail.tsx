@@ -39,6 +39,18 @@ export const ArticleDetail: React.FC = () => {
     loadArticle();
   }, [slug, user?.id]);
 
+  useEffect(() => {
+    if (article) {
+      const artTitle = language === 'hi' ? article.titleHi : article.titleEn;
+      document.title = `${artTitle} | Late Khabar`;
+    } else {
+      document.title = "Late Khabar";
+    }
+    return () => {
+      document.title = "Late Khabar";
+    };
+  }, [article, language]);
+
   if (loading) return <SkeletonHero />;
   if (!article) {
     return (
