@@ -114,7 +114,16 @@ export const mapDbRowToArticle = (
     state: r.state as string | undefined,
     city: r.city as string | undefined,
 
-    readTimeMinutes: (r.read_time_minutes ?? 4) as number,
+    // Calculated on-the-fly from article content (averaging 180 words/min)
+    readTimeMinutes: Math.max(
+      1,
+      Math.ceil(
+        (((r.content_en as string) || (r.content_hi as string) || '')
+          .trim()
+          .split(/\s+/)
+          .filter(Boolean).length || 180) / 180
+      )
+    ),
     viewsCount: (r.views_count ?? 0) as number,
     savesCount: (r.saves_count ?? 0) as number,
     tags: (r.tags ?? []) as string[],
@@ -779,7 +788,6 @@ export const newsService = {
       if (updates.state !== undefined)     dbUpdates.state       = updates.state;
       if (updates.city !== undefined)      dbUpdates.city        = updates.city;
       if (updates.status !== undefined)    dbUpdates.status      = updates.status;
-      if (updates.readTimeMinutes !== undefined) dbUpdates.read_time_minutes = updates.readTimeMinutes;
       if (updates.authorId !== undefined)  dbUpdates.author_id   = updates.authorId || null;
 
       const { error } = await supabase.from('news').update(dbUpdates).eq('id', id);

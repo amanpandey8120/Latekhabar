@@ -294,7 +294,6 @@ export const ArticleUpload: React.FC = () => {
           state,
           city,
           status: existingStatus, // Keep existing published/draft status intact
-          readTimeMinutes: calculatedReadTime,
           authorId: resolvedAuthorId ?? undefined,
         });
 

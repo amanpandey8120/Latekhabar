@@ -66,7 +66,6 @@ CREATE TABLE IF NOT EXISTS public.news (
   video_url TEXT,
   state TEXT,
   city TEXT,
-  read_time_minutes INTEGER DEFAULT 4,
   views_count INTEGER DEFAULT 0,
   saves_count INTEGER DEFAULT 0,
   tags TEXT[] DEFAULT '{}',
