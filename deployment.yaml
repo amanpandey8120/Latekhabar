@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: latekhabar
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: latekhabar
+  template:
+    metadata:
+      labels:
+        app: latekhabar
+    spec:
+      containers:
+        - name: latekhabar
+          image: amanpandey123/latekhabar:latest
+          ports:
+            - containerPort: 80
